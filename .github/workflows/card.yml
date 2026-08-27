@@ -1,0 +1,69 @@
+name: daily card
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"        # 13:00 UTC = 21:00 SGT, 30 min before the US open
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "build only, send no email"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-card
+  cancel-in-progress: false
+
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }      # the SDK requires >=3.10,<3.13
+
+      - run: pip install --quiet webull-openapi-mcp
+
+      # The 2FA token is an opaque string and is portable between machines
+      # (verified 2026-08-27), so CI never needs an interactive phone approval.
+      - name: restore Webull token
+        run: |
+          mkdir -p "$RUNNER_TEMP/wb"
+          printf '%s' "${{ secrets.WEBULL_TOKEN }}" > "$RUNNER_TEMP/wb/token.txt"
+
+      - name: build card, write page, send email
+        env:
+          WEBULL_APP_KEY:    ${{ secrets.WEBULL_APP_KEY }}
+          WEBULL_APP_SECRET: ${{ secrets.WEBULL_APP_SECRET }}
+          WEBULL_REGION_ID:  sg
+          WEBULL_ENVIRONMENT: prod
+          WEBULL_TOOLSETS:   market-data,instrument,account
+          WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
+          SMTP_USER:         genalphai.production@gmail.com
+          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
+          REPORT_TO:         ${{ secrets.REPORT_TO }}
+          ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
+        run: |
+          python engine/daily.py ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # docs/index.html is PUBLIC. daily.py never writes account data into it;
+      # this is the belt-and-braces check, because a leak here is irreversible.
+      - name: refuse to publish account data
+        run: |
+          if grep -qiE 'equity|holding|deposited|kill switch|buying power' docs/index.html; then
+            echo "::error::account-shaped text found in the public page — not publishing"
+            exit 1
+          fi
+
+      - name: commit the page
+        run: |
+          git config user.name  "i004-bot"
+          git config user.email "i004-bot@users.noreply.github.com"
+          git add docs/index.html
+          git diff --staged --quiet || git commit -m "card: $(date -u +%Y-%m-%d)"
+          git push
