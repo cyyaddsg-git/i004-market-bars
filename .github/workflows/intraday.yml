@@ -34,4 +34,6 @@ jobs:
           WEBULL_ENVIRONMENT: prod
           WEBULL_TOOLSETS:   market-data,instrument
           WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
-        run: python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}"
+        run: |
+          python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}"
+          python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" --json
