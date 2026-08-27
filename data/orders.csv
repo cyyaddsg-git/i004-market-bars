@@ -1,0 +1,2 @@
+lodged_date,ticker,side,qty,decided_price,invalidation,bar_date,fill_date,fill_price,status
+2026-08-27,PLTR,BUY,67,177.500000,162.705271,2026-08-26,,,PENDING
