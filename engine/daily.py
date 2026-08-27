@@ -30,6 +30,7 @@ REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import card                                    # noqa: E402
+import predictions                             # noqa: E402
 import render                                  # noqa: E402
 
 ET = zoneinfo.ZoneInfo("America/New_York")
@@ -75,6 +76,13 @@ def main() -> None:
     if not [r for r in rows if r["action"] != "NO_DATA"]:
         print("every ticker returned NO DATA — not publishing a card built on nothing")
         sys.exit(1)
+
+    # Log what we are about to claim BEFORE publishing it, and settle whatever
+    # yesterday's bars have since answered. This is the only out-of-sample record
+    # of the rule -- docs/index.html is overwritten every run and keeps nothing.
+    issued = f"{now_et:%Y-%m-%d}"
+    print(f"log   -> {predictions.log(rows, issued)} new, "
+          f"{predictions.settle()} settled")
 
     os.makedirs(os.path.dirname(PAGE), exist_ok=True)
     with open(PAGE, "w") as f:
