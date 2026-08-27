@@ -31,10 +31,12 @@ sys.path.insert(0, HERE)
 
 import card                                    # noqa: E402
 import predictions                             # noqa: E402
+import sim                                     # noqa: E402
 import render                                  # noqa: E402
 
 ET = zoneinfo.ZoneInfo("America/New_York")
 PAGE = os.path.join(REPO, "docs", "index.html")
+SIM_PAGE = os.path.join(REPO, "docs", "sim.html")
 
 
 def trading_day(now_et: datetime.datetime) -> bool:
@@ -83,6 +85,19 @@ def main() -> None:
     issued = f"{now_et:%Y-%m-%d}"
     print(f"log   -> {predictions.log(rows, issued)} new, "
           f"{predictions.settle()} settled")
+
+    # The paper book (plan R16). Fill yesterday's pending orders from bars that
+    # have since arrived, THEN lodge today's — never the other way round, or an
+    # order could fill on the same bar that decided it.
+    filled = sim.fill()
+    lodged = sim.lodge(rows, issued)
+    live = {r["symbol"]: r["price"] for r in rows if r.get("price")}
+    book = sim.mark(live)
+    sim.save_book()
+    print(f"sim   -> {filled} filled, {lodged} lodged, "
+          f"equity {book['equity']:,.2f} ({book['pl_pct']:+.2f}%)")
+    with open(SIM_PAGE, "w") as f:
+        f.write(sim.page(book))
 
     os.makedirs(os.path.dirname(PAGE), exist_ok=True)
     with open(PAGE, "w") as f:

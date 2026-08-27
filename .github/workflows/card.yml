@@ -54,7 +54,17 @@ jobs:
       # docs/index.html is PUBLIC. daily.py never writes account data into it;
       # this is the belt-and-braces check, because a leak here is irreversible.
       - name: refuse to publish account data
+        env:
+          ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
         run: |
+          # docs/sim.html is a SIMULATED book, so it legitimately says "equity".
+          # It must still never carry the real deposited figure, which is what
+          # this second check is for. index.html stays under the strict rule.
+          if [ -f docs/sim.html ] && [ -n "$ACCOUNT_DEPOSITED" ] \
+             && grep -qF "$ACCOUNT_DEPOSITED" docs/sim.html; then
+            echo "::error::the real account figure appears in the simulated page — not publishing"
+            exit 1
+          fi
           if grep -qiE 'equity|holding|deposited|kill switch|buying power' docs/index.html; then
             echo "::error::account-shaped text found in the public page — not publishing"
             exit 1
@@ -64,6 +74,7 @@ jobs:
         run: |
           git config user.name  "i004-bot"
           git config user.email "i004-bot@users.noreply.github.com"
-          git add docs/index.html data/predictions.csv
+          git add docs/index.html docs/sim.html \
+                  data/predictions.csv data/orders.csv data/book.json
           git diff --staged --quiet || git commit -m "card: $(date -u +%Y-%m-%d)"
           git push
