@@ -2,7 +2,11 @@ name: daily card
 
 on:
   schedule:
-    - cron: "0 13 * * 1-5"        # 13:00 UTC = 21:00 SGT, 30 min before the US open
+    # 12:45 UTC = 20:45 SGT. Deliberately 15 min early and OFF the top of the
+    # hour: GitHub does not guarantee cron timing and :00 is the most contended
+    # slot, so "0 13" was landing 21:00-21:20+. YY reads this at 21:00.
+    # Still 45 min before the US open (13:30 UTC), so the card is pre-market either way.
+    - cron: "45 12 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:
