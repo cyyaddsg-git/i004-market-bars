@@ -97,6 +97,68 @@ def card(r: dict, news: str = "", now: str = "") -> str:
     return "\n".join(L)
 
 
+# --- the same card as a page, for the Ledger Market tab ----------------------
+# Its own file (docs/intraday.html), like docs/sim.html, so card.yml's
+# account-data gate on docs/index.html is untouched.
+def page(r: dict, news: str = "", now: str = "") -> str:
+    BG, FGC, DIMC = "#0F1712", "#F2F0E9", "#8fa3b6"
+    GRNC, REDC, GLDC = "#4ADE80", "#FF6B6B", "#E8B84B"
+
+    def sp(t, c, b=False):
+        return '<span style="color:%s%s;">%s</span>' % (c, ";font-weight:600" if b else "", t)
+
+    px = r["price"]
+    prior = r.get("prior_close")
+    chg = (px / prior - 1) * 100 if prior else None
+    ccol = GRNC if (chg or 0) >= 0 else REDC
+
+    head = (sp(r["symbol"], FGC, True) + "&nbsp;&nbsp;" + sp("%.2f" % px, ccol, True)
+            + ("&nbsp;&nbsp;" + sp("%+.2f%%" % chg, ccol) if chg is not None else "")
+            + "&nbsp;&nbsp;" + sp(now, DIMC))
+
+    if r["side"] == "NO SETUP":
+        body = sp("WAIT", GLDC, True) + sp(" &mdash; no setup", DIMC) + "<br><br>"
+        if r.get("orb_high") and r.get("vwap"):
+            body += (sp("trigger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp("%.2f" % r["orb_high"], GRNC, True)
+                     + sp("&nbsp; break above &rarr; LONG", DIMC) + "<br>"
+                     + sp("invalidation&nbsp;", DIMC) + sp("%.2f" % r["vwap"], REDC, True)
+                     + sp("&nbsp; VWAP &mdash; long is off", DIMC) + "<br>"
+                     + sp("target&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&mdash;&nbsp; set when it triggers", DIMC))
+        else:
+            body += sp(r.get("why", ""), DIMC)
+    else:
+        sc = GRNC if r["side"] == "LONG" else REDC
+        body = (sp(r["side"], sc, True) + "<br><br>"
+                + sp("entry&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp("%.2f" % r["entry"], FGC, True) + "<br>"
+                + sp("stop&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp("%.2f" % r["stop"], REDC, True)
+                + sp("&nbsp; %.2f/sh &middot; %s%%" % (r["risk_per_share"], r["risk_pct_of_price"]), DIMC) + "<br>"
+                + sp("target&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp("%.2f" % r["target"], GRNC, True)
+                + sp("&nbsp; %sR" % r["r_multiple"], DIMC) + "<br>"
+                + sp("size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp("%s sh" % format(r["qty"], ","), FGC)
+                + sp("&nbsp; risk $%s &middot; notional $%s"
+                     % (format(r["risk_dollars"], ",.0f"), format(r["notional"], ",.0f")), DIMC))
+
+    tape = ("VWAP %.2f &middot; opening 30m %.2f&ndash;%.2f &middot; session %.2f&ndash;%.2f "
+            "&middot; %.1fM shares &middot; ATR %.2f"
+            % (r["vwap"], r["orb_low"], r["orb_high"], r["session_low"],
+               r["session_high"], r["volume"] / 1e6, r["atr"]))
+
+    extra = (sp("catalyst&nbsp;&nbsp;", DIMC) + sp(news, FGC) + "<br>") if news else ""
+
+    return ('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<meta http-equiv="refresh" content="60">'
+            '<title>i004 &middot; intraday</title><link rel="icon" href="data:,"></head>'
+            '<body style="margin:0;padding:16px;background:#080d0a;">'
+            '<div style="background:%s;color:%s;padding:18px 20px;border-radius:10px;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;'
+            'line-height:1.7;max-width:640px;">%s<br><br>%s<br><br>%s%s<br><br>%s</div>'
+            '</body></html>'
+            % (BG, FGC, head, body, extra,
+               sp("tape&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;", DIMC) + sp(tape, DIMC),
+               sp("Not an order. Trigger and invalidation only &mdash; you place it.", GLDC)))
+
+
 def main() -> None:
     news = ""
     argv = sys.argv[1:]
@@ -116,7 +178,14 @@ def main() -> None:
 
     import datetime, zoneinfo
     now = datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Singapore")).strftime("%H:%M SGT")
-    print(card(r, news, now))
+    if "--html" in argv:
+        dest = argv[argv.index("--html") + 1]
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "w") as f:
+            f.write(page(r, news, now))
+        print(f"page -> {dest}")
+    else:
+        print(card(r, news, now))
 
 
 if __name__ == "__main__":

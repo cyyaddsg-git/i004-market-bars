@@ -13,10 +13,16 @@ on:
         description: "M1 M5 M15 M30 M60"
         type: string
         default: "M5"
+      news:
+        description: "one-line catalyst (optional)"
+        type: string
+        default: ""
 
 jobs:
   read:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,3 +43,14 @@ jobs:
         run: |
           python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}"
           python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" --json
+          python engine/intraday_card.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" \
+                 --news "${{ inputs.news }}" --html docs/intraday.html
+
+      # Its own page, like docs/sim.html — index.html's account-data gate is untouched.
+      - name: publish the card
+        run: |
+          git config user.name  "i004-bot"
+          git config user.email "i004-bot@users.noreply.github.com"
+          git add docs/intraday.html
+          git diff --staged --quiet || git commit -m "intraday: ${{ inputs.symbol }} $(date -u +%H:%MZ)"
+          git push
