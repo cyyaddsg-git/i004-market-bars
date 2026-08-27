@@ -40,11 +40,14 @@ jobs:
           WEBULL_ENVIRONMENT: prod
           WEBULL_TOOLSETS:   market-data,instrument
           WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
+          NEWS:              ${{ inputs.news }}
         run: |
           python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}"
           python engine/intraday.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" --json
+          # NEWS goes through the environment, never interpolated into the shell:
+          # "$96.2B" was being read as positional parameter 9 and printed "6.2B".
           python engine/intraday_card.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" \
-                 --news "${{ inputs.news }}" --html docs/intraday.html
+                 --news "$NEWS" --html docs/intraday.html
 
       # Its own page, like docs/sim.html — index.html's account-data gate is untouched.
       - name: publish the card
