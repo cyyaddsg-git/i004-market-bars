@@ -124,9 +124,35 @@ def read(symbol: str, timespan: str = "M5") -> dict:
                         "not enough of the session has traded to have a VWAP and an ATR"))
         return out
 
-    if px > vwap and px > orh:
+    # Trigger and invalidation are DIFFERENT levels, so the state has to be
+    # walked forward rather than recomputed from the latest bar alone.
+    #
+    #   enter   close above the opening-range high (below the low for short)
+    #   stay    until close crosses VWAP -- which is what the card promises
+    #
+    # The stateless version re-tested the trigger on every bar, so price sitting
+    # between VWAP and the opening-range high flipped LONG/NO SETUP repeatedly.
+    # Live on NVDA 2026-08-27 that produced 6 state changes in the last 35
+    # minutes, and it contradicted the card, which names VWAP as the invalidation.
+    state = None
+    run_vol = run_pv = 0.0
+    for b in today:
+        run_vol += b["v"]
+        run_pv += (b["h"] + b["l"] + b["c"]) / 3 * b["v"]
+        vw = run_pv / run_vol if run_vol else b["c"]
+        if state == "LONG" and b["c"] < vw:
+            state = None
+        elif state == "SHORT" and b["c"] > vw:
+            state = None
+        if state is None:
+            if b["c"] > orh and b["c"] > vw:
+                state = "LONG"
+            elif b["c"] < orl and b["c"] < vw:
+                state = "SHORT"
+
+    if state == "LONG":
         side, stop = "LONG", max(orh, vwap) - STOP_PAD * a
-    elif px < vwap and px < orl:
+    elif state == "SHORT":
         side, stop = "SHORT", min(orl, vwap) + STOP_PAD * a
     else:
         where = ("between VWAP and the opening range" if orl <= px <= orh
