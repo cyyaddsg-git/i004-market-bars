@@ -108,6 +108,21 @@ def _size(equity: float, price: float, invalidation: float, cash: float) -> int:
     return max(qty, 0)
 
 
+def action_for(regime: str, held_qty: int) -> str:
+    """The paper book's OWN action.
+
+    The card's `action` cannot be used here: it is computed against YY's real
+    Webull holdings, so a name YY already owns comes through as HOLD and the
+    paper book -- which started flat -- would never buy it, while a SELL could
+    arrive for stock it does not have. The book must read the regime against its
+    own positions. Same mapping indicators.py uses, applied to a different book."""
+    if regime == "IN":
+        return "HOLD" if held_qty else "BUY"
+    if regime == "OUT":
+        return "SELL" if held_qty else "STAND_ASIDE"
+    return "NO_TRADE"                                  # WATCH claims nothing
+
+
 def lodge(card_rows: list[dict], today: str) -> int:
     """Turn today's card into orders. Idempotent per (date, ticker)."""
     rows = _orders()
@@ -118,13 +133,14 @@ def lodge(card_rows: list[dict], today: str) -> int:
     cash = book["cash"]
     added = 0
     for r in card_rows:
-        t, act = r["symbol"], r.get("action")
-        if act not in ("BUY", "SELL") or (today, t) in seen:
+        t = r["symbol"]
+        if r.get("action") == "NO_DATA" or (today, t) in seen:
             continue
         held = book["positions"].get(t, {}).get("qty", 0)
+        act = action_for(r.get("regime", ""), held)
+        if act not in ("BUY", "SELL"):
+            continue
         if act == "BUY":
-            if held:
-                continue                       # already in it — that is a HOLD, not a top-up
             qty = _size(equity, r["price"], r["invalidation"], cash)
             if qty <= 0:
                 continue
