@@ -1,9 +1,0 @@
-{
- "_readme": "DERIVED from data/orders.csv by engine/sim.py. Do not hand-edit.",
- "_derived": {
-  "opened": "2026-08-27",
-  "capital": 100000.0,
-  "cash": 100000.0,
-  "positions": {}
- }
-}

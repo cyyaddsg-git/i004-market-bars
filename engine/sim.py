@@ -205,67 +205,48 @@ def mark(prices: dict[str, float] | None = None) -> dict:
 
 
 def save_book() -> dict:
-    """Persist the derived book, asserting first that it IS the replay."""
+    """Persist the derived book, after checking the log was not rewritten.
+
+    An earlier version compared the stored book against a fresh replay and
+    refused if they differed -- which is exactly what a legitimate fill does, so
+    the first real settlement failed the build. The invariant is not "the book
+    never changes"; it is:
+
+      * an order's DECISION fields never change once written, and
+      * a fill never un-fills, and a filled price is never revised.
+
+    Those are the things a tampered log would have to break to move the P/L.
+    """
     book = replay()
+    rows = _orders()
+
+    def decision_key(r):
+        return "|".join(str(r[k]) for k in
+                        ("lodged_date", "ticker", "side", "qty",
+                         "decided_price", "invalidation", "bar_date"))
+
+    seen = {}
+    for r in rows:
+        k = f"{r['lodged_date']}/{r['ticker']}"
+        seen[k] = {"decision": decision_key(r),
+                   "fill": f"{r['fill_date']}@{r['fill_price']}" if r["status"] == "FILLED" else ""}
+
     if os.path.exists(BOOK):
-        stored = json.load(open(BOOK))
-        if stored.get("_derived") and stored["_derived"] != book:
-            raise AssertionError("stored book does not match a replay of orders.csv — "
-                                 "the log has been edited; refusing to continue")
+        prior = json.load(open(BOOK)).get("_orders", {})
+        for k, was in prior.items():
+            now = seen.get(k)
+            if now is None:
+                raise AssertionError(f"order {k} has vanished from the log — refusing to continue")
+            if now["decision"] != was["decision"]:
+                raise AssertionError(f"order {k} was rewritten after the fact "
+                                     f"({was['decision']} -> {now['decision']}) — refusing to continue")
+            if was["fill"] and now["fill"] != was["fill"]:
+                raise AssertionError(f"order {k} was already filled at {was['fill']} and now reads "
+                                     f"{now['fill'] or 'UNFILLED'} — refusing to continue")
+
     json.dump({"_readme": "DERIVED from data/orders.csv by engine/sim.py. Do not hand-edit.",
-               "_derived": book}, open(BOOK, "w"), indent=1)
+               "_derived": book, "_orders": seen}, open(BOOK, "w"), indent=1)
     return book
-
-
-# --- the page YY reads on the phone -----------------------------------------
-# Its own file, not docs/index.html, so card.yml's "refuse to publish account
-# data" gate stays exactly as strict as it is. This book is simulated, but the
-# words it uses (equity, holdings) are the words that gate looks for, and
-# loosening a real safety check to fit a fake book would be a bad trade.
-BG, FG, DIM, GRN, RED, GLD = "#0F1712", "#F2F0E9", "#8fa3b6", "#4ADE80", "#FF6B6B", "#E8B84B"
-
-
-def _sp(text: str, colour: str, bold: bool = False) -> str:
-    weight = ";font-weight:600" if bold else ""
-    return '<span style="color:%s%s;">%s</span>' % (colour, weight, text)
-
-
-def page(m: dict) -> str:
-    col = GRN if m["pl"] >= 0 else RED
-
-    lines = []
-    for p in m["positions"]:
-        pc = GRN if p["upl"] >= 0 else RED
-        lines.append(
-            _sp(p["ticker"], FG, True)
-            + "&nbsp;&nbsp;" + _sp("%d sh" % p["qty"], DIM)
-            + "&nbsp; @ " + _sp("%.2f" % p["avg_cost"], DIM)
-            + "&nbsp; now " + _sp("%.2f" % p["price"], FG)
-            + "&nbsp; " + _sp(format(p["upl"], "+,.2f"), pc, True)
-            + " " + _sp("(%+.2f%%)" % p["upl_pct"], pc))
-    body = "<br>".join(lines) if lines else _sp("no open positions", DIM)
-
-    head = _sp("SIMULATED book &middot; opened %s &middot; $%s &middot; no fees"
-               % (m["opened"], format(m["capital"], ",.0f")), DIM)
-    pl = (_sp("P/L", FG, True) + "&nbsp;&nbsp;"
-          + _sp(format(m["pl"], "+,.2f"), col, True) + "&nbsp;&nbsp;"
-          + _sp("(%+.2f%%)" % m["pl_pct"], col))
-    sub = _sp("equity %s &middot; cash %s &middot; positions %s"
-              % (format(m["equity"], ",.2f"), format(m["cash"], ",.2f"),
-                 format(m["market_value"], ",.2f")), DIM)
-    foot = (_sp("%d order(s) filled, %d pending" % (m["filled"], m["pending"]), DIM)
-            + "<br>" + _sp("Not real money. Fills are real bar opens; "
-                           "no order was ever placed.", GLD))
-
-    return ('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
-            '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>i004 &middot; paper book</title><link rel="icon" href="data:,"></head>'
-            '<body style="margin:0;padding:16px;background:#080d0a;">'
-            '<div style="background:%s;color:%s;padding:18px 20px;border-radius:10px;'
-            'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;'
-            'line-height:1.65;max-width:640px;">'
-            '%s<br><br>%s<br>%s<br><br>%s<br><br>%s</div></body></html>'
-            % (BG, FG, head, pl, sub, body, foot))
 
 
 def main() -> None:
