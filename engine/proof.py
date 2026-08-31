@@ -50,6 +50,35 @@ def load():
         return [r for r in csv.DictReader(f) if r.get("settle_close")]
 
 
+def exit_evidence():
+    """Has the book ever actually got out of anything, and did it ever need to?"""
+    d = os.path.join(os.path.dirname(HERE), "data")
+    orders = os.path.join(d, "orders.csv")
+    bars_p = os.path.join(d, "bars.csv")
+    sells = outs = breaches = 0
+    rows = []
+    if os.path.exists(orders):
+        with open(orders, newline="") as f:
+            rows = list(csv.DictReader(f))
+        sells = sum(1 for r in rows
+                    if r["side"] == "SELL" and "CORRECTION" not in (r.get("note") or ""))
+    if os.path.exists(PRED):
+        with open(PRED, newline="") as f:
+            outs = sum(1 for r in csv.DictReader(f) if r.get("regime") == "OUT")
+    bars = collections.defaultdict(list)
+    if os.path.exists(bars_p):
+        with open(bars_p, newline="") as f:
+            for b in csv.DictReader(f):
+                bars[b["ticker"]].append(b)
+    for r in rows:
+        if r["status"] != "FILLED" or r["side"] != "BUY":
+            continue
+        after = [b for b in bars.get(r["ticker"], []) if b["date"] >= r["fill_date"]]
+        if after and min(float(b["low"]) for b in after) < float(r["invalidation"]):
+            breaches += 1
+    return {"sells": sells, "outs": outs, "breaches": breaches}
+
+
 def report(rows):
     if not rows:
         print("no settled predictions yet — nothing to prove either way")
@@ -83,6 +112,25 @@ def report(rows):
         b = sum(1 for r in dr if r["band_hit"] == "1")
         print(f"  {d}  {len(dr)} names · {u} rose · direction {h}/{len(dr)} · "
               f"band {b}/{len(dr)}")
+
+    # THE EXIT HALF. A book that has only ever bought is indistinguishable from
+    # buy-and-hold -- which is the always-IN baseline it is already tied with. Two of the
+    # four measures in plan.html section 1 (invalidation respected, no-trade discipline)
+    # have no observations at all until this has happened.
+    exits = exit_evidence()
+    print()
+    print(f"exit path: {exits['sells']} model-driven SELL(s) executed · "
+          f"{exits['outs']} OUT regime(s) issued · "
+          f"{exits['breaches']} invalidation breach(es) on held names")
+    if exits["sells"] == 0:
+        print("           THE EXIT HALF OF THE MODEL IS UNTESTED. Nothing has been sold, "
+              "so 'invalidation respected' has zero observations.")
+        if exits["breaches"] == 0:
+            print("           No holding has breached its stop either, so nothing was "
+                  "missed — the path simply has not come up yet.")
+        else:
+            print("           And a stop WAS breached without a sell. That is a "
+                  "discipline failure, not an untested path.")
 
     print()
     if s < MIN_SESSIONS:
