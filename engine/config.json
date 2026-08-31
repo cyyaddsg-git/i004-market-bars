@@ -1,14 +1,22 @@
 {
-  "_readme": "Public config for the i004 card. This repo is PUBLIC \u2014 never add account size, deposits, holdings or P&L here. Those arrive at runtime from GitHub secrets (ACCOUNT_DEPOSITED) or are read live from Webull and stay out of the page.",
-  "watchlist": [
-    "PLTU",
-    "BULL",
-    "ORBS",
-    "SPCX",
-    "LIDR",
-    "ORCL",
-    "PLTR"
-  ],
-  "min_avg_dollar_volume": 5000000,
-  "drawdown_kill_switch_pct": 20
+ "_readme": "Public config for the i004 card. This repo is PUBLIC \u2014 never add account size, deposits, holdings or P&L here. Those arrive at runtime from GitHub secrets (ACCOUNT_DEPOSITED) or are read live from Webull and stay out of the page.",
+ "watchlist": [
+  "MU",
+  "NVDA",
+  "INTC",
+  "AMD",
+  "TSLA",
+  "META",
+  "PLTR",
+  "MSFT"
+ ],
+ "min_avg_dollar_volume": 5000000,
+ "drawdown_kill_switch_pct": 20,
+ "universe_rules": {
+  "price_min": 20.0,
+  "adv_min": 100000000.0,
+  "atr_pct_min": 0.015,
+  "atr_pct_max": 0.06,
+  "take": 8
+ }
 }

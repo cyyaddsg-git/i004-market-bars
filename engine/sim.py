@@ -36,9 +36,14 @@ OPENED = "2026-08-27"
 CAPITAL = 100_000.0
 RISK_PCT = 0.01          # equity risked between entry and invalidation
 MAX_WEIGHT = 0.20        # ceiling on one name, so a tight stop cannot eat the book
+# Ceiling on ALL names together. Without it, 20% x 7 names is 140% of capital and the
+# book relies on orders not filling. On 2026-08-27 six orders committed 65% of capital in
+# a single session, which is how a duplicate-order bug could push cash below zero at all.
+# Cash is not spare money: it is the buffer that makes "never on margin" survivable.
+MAX_GROSS = 0.80         # at most 80% invested, so >=20% of capital stays in cash
 
 OCOLS = ["lodged_date", "ticker", "side", "qty", "decided_price", "invalidation",
-         "bar_date", "fill_date", "fill_price", "status"]
+         "bar_date", "fill_date", "fill_price", "status", "note"]
 
 
 def _orders() -> list[dict]:
@@ -92,14 +97,55 @@ def replay(rows: list[dict] | None = None) -> dict:
             cash += q * px
             if p["qty"] == 0:
                 del pos[r["ticker"]]
+    # NO MARGIN. YY, 2026-08-31: "the simulation should never play margin".
+    # This is the last line of defence: whatever the sizing rule did, a book that
+    # has spent more than it has is not a paper trade, it is a loan -- and in real
+    # life it carries interest this simulation does not model. Fail rather than
+    # publish a number that quietly assumes borrowing.
+    if cash < -0.005:
+        raise AssertionError(
+            f'book is on margin: cash {cash:,.2f} on capital {CAPITAL:,.2f}. '
+            f'No order may spend money the book does not hold.')
+
     return {"opened": OPENED, "capital": CAPITAL, "cash": round(cash, 2),
             "positions": {t: {"qty": p["qty"], "avg_cost": round(p["cost"] / p["qty"], 6)}
                           for t, p in pos.items()}}
 
 
+def committed(rows: list[dict], book: dict) -> tuple[float, dict[str, int]]:
+    """Cash and quantities AFTER honouring pending orders.
+
+    THE BUG THIS EXISTS TO PREVENT (2026-08-31). `replay()` counts FILLED rows only, so
+    a buy lodged yesterday and not yet filled was invisible twice over: the position read
+    as flat, so the same regime produced the same BUY again the next day, and the cash it
+    had already spoken for read as free, so the second buy was affordable. Five orders
+    were lodged on 27 Aug and again on 28 Aug; both sets filled; every position except
+    PLTR ended up exactly double and cash went to -$18,062.80 on $100,000 of capital.
+
+    A pending order is a commitment. It reserves the cash and it holds the position.
+    """
+    cash = book["cash"]
+    held = {t: p["qty"] for t, p in book["positions"].items()}
+    for r in rows:
+        if r.get("status") != "PENDING":
+            continue
+        q = int(r["qty"])
+        if r["side"] == "BUY":
+            cash -= q * float(r["decided_price"])
+            held[r["ticker"]] = held.get(r["ticker"], 0) + q
+        else:
+            held[r["ticker"]] = held.get(r["ticker"], 0) - q
+    return cash, held
+
+
 def _size(equity: float, price: float, invalidation: float, cash: float) -> int:
     """Risk RISK_PCT of equity between entry and invalidation, capped by weight
-    and by cash. Returns 0 when the stop is too wide to take any size."""
+    and by UNCOMMITTED cash. Returns 0 when the stop is too wide to take any size.
+
+    `cash` must be cash net of every PENDING buy, not the filled-only balance -- see
+    committed(). YY, 2026-08-31: "the simulation should never play margin (always buy
+    stock with positive cash)."
+    """
     per_share = price - invalidation
     if per_share <= 0 or price <= 0:
         return 0
@@ -130,21 +176,35 @@ def lodge(card_rows: list[dict], today: str) -> int:
     book = replay(rows)
     marks = {t: p["avg_cost"] for t, p in book["positions"].items()}
     equity = book["cash"] + sum(p["qty"] * marks[t] for t, p in book["positions"].items())
-    cash = book["cash"]
+    # Pending orders are commitments, not intentions -- see committed(). Using the
+    # filled-only book here is what double-bought five names on 2026-08-28.
+    cash, held_by = committed(rows, book)
+    invested = CAPITAL - cash                  # everything already committed or filled
     added = 0
     for r in card_rows:
         t = r["symbol"]
         if r.get("action") == "NO_DATA" or (today, t) in seen:
             continue
-        held = book["positions"].get(t, {}).get("qty", 0)
+        held = held_by.get(t, 0)
         act = action_for(r.get("regime", ""), held)
         if act not in ("BUY", "SELL"):
             continue
         if act == "BUY":
-            qty = _size(equity, r["price"], r["invalidation"], cash)
+            if cash <= 0:
+                continue                       # NO MARGIN, ever (YY 2026-08-31)
+            # room left under the gross cap, in cash terms
+            room = min(cash, CAPITAL * MAX_GROSS - invested)
+            if room <= 0:
+                continue
+            qty = _size(equity, r["price"], r["invalidation"], room)
             if qty <= 0:
                 continue
-            cash -= qty * r["price"]           # provisional, so two BUYs cannot spend the same cash
+            cost = qty * r["price"]
+            if cost > cash or invested + cost > CAPITAL * MAX_GROSS:
+                continue                       # belt and braces on top of _size's cap
+            cash -= cost                       # so two BUYs cannot spend the same cash
+            invested += cost
+            held_by[t] = held_by.get(t, 0) + qty
         else:
             qty = held
             if qty <= 0:

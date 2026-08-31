@@ -1,12 +1,17 @@
-lodged_date,ticker,side,qty,decided_price,invalidation,bar_date,fill_date,fill_price,status
-2026-08-27,PLTR,BUY,67,177.500000,162.705271,2026-08-26,2026-08-27,178.929993,FILLED
-2026-08-27,PLTU,BUY,94,57.270000,46.641615,2026-08-27,2026-08-28,56.750000,FILLED
-2026-08-27,BULL,BUY,597,9.570000,7.896425,2026-08-27,2026-08-28,9.500000,FILLED
-2026-08-27,ORBS,BUY,10022,0.820600,0.720820,2026-08-27,2026-08-28,0.834400,FILLED
-2026-08-27,SPCX,BUY,98,140.870000,130.696284,2026-08-27,2026-08-28,139.804993,FILLED
-2026-08-27,ORCL,BUY,130,151.940000,144.263616,2026-08-27,2026-08-28,153.600006,FILLED
-2026-08-28,PLTU,BUY,94,57.270000,46.641615,2026-08-27,2026-08-28,56.750000,FILLED
-2026-08-28,BULL,BUY,597,9.570000,7.896425,2026-08-27,2026-08-28,9.500000,FILLED
-2026-08-28,ORBS,BUY,10022,0.820600,0.720820,2026-08-27,2026-08-28,0.834400,FILLED
-2026-08-28,SPCX,BUY,98,140.870000,130.696284,2026-08-27,2026-08-28,139.804993,FILLED
-2026-08-28,ORCL,BUY,130,151.940000,144.263616,2026-08-27,2026-08-28,153.600006,FILLED
+lodged_date,ticker,side,qty,decided_price,invalidation,bar_date,fill_date,fill_price,status,note
+2026-08-27,PLTR,BUY,67,177.500000,162.705271,2026-08-26,2026-08-27,178.929993,FILLED,
+2026-08-27,PLTU,BUY,94,57.270000,46.641615,2026-08-27,2026-08-28,56.750000,FILLED,
+2026-08-27,BULL,BUY,597,9.570000,7.896425,2026-08-27,2026-08-28,9.500000,FILLED,
+2026-08-27,ORBS,BUY,10022,0.820600,0.720820,2026-08-27,2026-08-28,0.834400,FILLED,
+2026-08-27,SPCX,BUY,98,140.870000,130.696284,2026-08-27,2026-08-28,139.804993,FILLED,
+2026-08-27,ORCL,BUY,130,151.940000,144.263616,2026-08-27,2026-08-28,153.600006,FILLED,
+2026-08-28,PLTU,BUY,94,57.270000,46.641615,2026-08-27,2026-08-28,56.750000,FILLED,DUPLICATE of the 2026-08-27 order for this name; reversed below. Cause: pending orders were invisible to the position and cash checks.
+2026-08-28,BULL,BUY,597,9.570000,7.896425,2026-08-27,2026-08-28,9.500000,FILLED,DUPLICATE of the 2026-08-27 order for this name; reversed below. Cause: pending orders were invisible to the position and cash checks.
+2026-08-28,ORBS,BUY,10022,0.820600,0.720820,2026-08-27,2026-08-28,0.834400,FILLED,DUPLICATE of the 2026-08-27 order for this name; reversed below. Cause: pending orders were invisible to the position and cash checks.
+2026-08-28,SPCX,BUY,98,140.870000,130.696284,2026-08-27,2026-08-28,139.804993,FILLED,DUPLICATE of the 2026-08-27 order for this name; reversed below. Cause: pending orders were invisible to the position and cash checks.
+2026-08-28,ORCL,BUY,130,151.940000,144.263616,2026-08-27,2026-08-28,153.600006,FILLED,DUPLICATE of the 2026-08-27 order for this name; reversed below. Cause: pending orders were invisible to the position and cash checks.
+2026-08-31,PLTU,SELL,94,56.750000,46.641615,2026-08-27,2026-08-28,56.750000,FILLED,"CORRECTION 2026-08-31: reverses the duplicate BUY lodged the same day at the same price. The 27 Aug order for this name was still PENDING, so the book read the position as flat and bought it a second time. Reversed at the identical fill price, so this books no profit and no loss -- it was never a decision, only the same decision recorded twice."
+2026-08-31,BULL,SELL,597,9.500000,7.896425,2026-08-27,2026-08-28,9.500000,FILLED,"CORRECTION 2026-08-31: reverses the duplicate BUY lodged the same day at the same price. The 27 Aug order for this name was still PENDING, so the book read the position as flat and bought it a second time. Reversed at the identical fill price, so this books no profit and no loss -- it was never a decision, only the same decision recorded twice."
+2026-08-31,ORBS,SELL,10022,0.834400,0.720820,2026-08-27,2026-08-28,0.834400,FILLED,"CORRECTION 2026-08-31: reverses the duplicate BUY lodged the same day at the same price. The 27 Aug order for this name was still PENDING, so the book read the position as flat and bought it a second time. Reversed at the identical fill price, so this books no profit and no loss -- it was never a decision, only the same decision recorded twice."
+2026-08-31,SPCX,SELL,98,139.804993,130.696284,2026-08-27,2026-08-28,139.804993,FILLED,"CORRECTION 2026-08-31: reverses the duplicate BUY lodged the same day at the same price. The 27 Aug order for this name was still PENDING, so the book read the position as flat and bought it a second time. Reversed at the identical fill price, so this books no profit and no loss -- it was never a decision, only the same decision recorded twice."
+2026-08-31,ORCL,SELL,130,153.600006,144.263616,2026-08-27,2026-08-28,153.600006,FILLED,"CORRECTION 2026-08-31: reverses the duplicate BUY lodged the same day at the same price. The 27 Aug order for this name was still PENDING, so the book read the position as flat and bought it a second time. Reversed at the identical fill price, so this books no profit and no loss -- it was never a decision, only the same decision recorded twice."

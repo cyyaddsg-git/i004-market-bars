@@ -10,7 +10,25 @@ Idempotent: re-running for a day already stored changes nothing.
 import csv, io, json, os, sys, time, urllib.request, datetime, zoneinfo
 
 ET = zoneinfo.ZoneInfo("America/New_York")
-SYMBOLS = ["PLTU", "BULL", "ORBS", "SPCX", "LIDR", "ORCL", "PLTR"]
+# Read from config.json + whatever the paper book still holds -- never a second
+# hand-typed list. It was one before, and a watchlist change would have left the fetcher
+# pulling bars for names nobody trades while the traded names went NO_DATA.
+def _symbols():
+    import json as _json
+    here = os.path.dirname(os.path.abspath(__file__))
+    cfg = _json.load(open(os.path.join(here, "engine", "config.json")))
+    syms = list(dict.fromkeys(cfg["watchlist"]))
+    try:
+        sys.path.insert(0, os.path.join(here, "engine"))
+        import sim
+        syms += [t for t, p in sim.replay()["positions"].items()
+                 if p["qty"] > 0 and t not in syms]
+    except Exception:
+        pass
+    return syms
+
+
+SYMBOLS = _symbols()
 OUT = "data/bars.csv"
 COLS = ["date", "ticker", "open", "high", "low", "close", "volume"]
 VALID_RANGES = {"5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "max"}

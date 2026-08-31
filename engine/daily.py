@@ -71,7 +71,7 @@ def main() -> None:
         return
 
     cfg = card.load("config.json")
-    symbols = list(dict.fromkeys(cfg["watchlist"]))
+    symbols = card.tradeable(cfg)      # universe + anything the book still holds
     rows, acct, _ = card.build(symbols, cfg)
     acc = card.load("accuracy.json")
 
