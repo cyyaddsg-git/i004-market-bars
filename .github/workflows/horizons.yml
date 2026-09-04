@@ -1,0 +1,68 @@
+name: prebuild horizons
+
+# Builds docs/h/<SYM>.json for every ticker the ask-a-ticker tab can answer.
+#
+# Nightly, and deliberately AFTER bars.yml (21:25 UTC), so the day's close is in.
+# 22:10 UTC = 18:10 ET, ~2h after the US close. GitHub's scheduler drifts by hours
+# on this repo (measured: requested 12:45 UTC, observed 16:36-22:42), so nothing
+# here may depend on the exact minute — it reads completed bars only.
+on:
+  schedule:
+    - cron: "10 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "how many NASDAQ names by market cap"
+        type: string
+        default: "250"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: horizons
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      # No Webull here. This runs over hundreds of symbols and uses Yahoo, the
+      # path bars.yml already proves at that volume. No credential is needed,
+      # which is also why nothing account-shaped can reach these files.
+      - name: build
+        run: python engine/build_horizons.py --limit ${{ inputs.limit || '250' }}
+
+      # docs/h/ is PUBLIC. The builder runs with account=False so holdings can
+      # never be serialised, and this is the second lock on that (plan R12).
+      - name: refuse to publish account data
+        run: |
+          # Anchor on the COLON: these are JSON keys, not words. Without it the
+          # ticker COST tripped the check and would have failed every nightly run
+          # unattended (caught locally 2026-09-04 before this ever shipped).
+          if grep -rqE '"(held|qty|cost|upl|equity|buying_power|deposited)" *:' \
+                 docs/h/ docs/ask.html; then
+            echo "::error::account-shaped key found in a public horizons file"
+            exit 1
+          fi
+          python - <<'PY'
+          import json, os, sys
+          idx = json.load(open("docs/h/index.json"))
+          if idx["count"] < 50:
+              sys.exit(f"::error::only {idx['count']} symbols built — refusing to publish "
+                       "a mostly-empty index")
+          print(f"{idx['count']} symbols, "
+                f"{sum(os.path.getsize('docs/h/'+f) for f in os.listdir('docs/h'))/1024:.0f} KB")
+          PY
+
+      - name: commit
+        run: |
+          git config user.name  "i004-bot"
+          git config user.email "i004-bot@users.noreply.github.com"
+          git add docs/h docs/ask.html
+          git diff --staged --quiet || git commit -m "horizons: $(date -u +%Y-%m-%d)"
+          git push

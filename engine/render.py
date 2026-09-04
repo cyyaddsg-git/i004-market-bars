@@ -195,9 +195,14 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
     if private and account:
         header += "<br>" + "<br>".join(sp(ln, DIM) for ln in account_lines(account))
 
+    # The link only makes sense on the public page: it is a sibling file there, and
+    # the terminal/email surfaces have no browser to follow it.
+    ask = ('<br><br><a href="ask.html" style="color:%s;text-decoration:none;'
+           'border-bottom:1px dotted %s;">Any other ticker &rarr; 1D / 5D / 1M read</a>'
+           % (ACC, ACC))
     note = ("" if private else
-            "<br><br>" + sp("Advice only. Positions and account figures are deliberately not "
-                            "published here.", DIM))
+            ask + "<br><br>" + sp("Advice only. Positions and account figures are "
+                                  "deliberately not published here.", DIM))
 
     return (f'<div style="background:{BG};color:{FG};padding:18px 20px;border-radius:10px;'
             f'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;'

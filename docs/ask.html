@@ -1,0 +1,136 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>i004 · ask a ticker</title>
+<link rel="icon" href="data:,">
+<style>
+ :root{--bg:#080d0a;--fg:#F2F0E9;--dim:#8fa3b6;--up:#4ADE80;--down:#FF6B6B;
+       --flat:#E8B84B;--acc:#7dd3fc;--line:#1c2620;}
+ *{box-sizing:border-box}
+ body{margin:0;padding:16px;background:var(--bg);color:var(--fg);
+      font:15px/1.45 -apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif}
+ h1{font-size:1em;margin:0 0 10px;color:var(--dim);font-weight:500}
+ form{display:flex;gap:8px;margin-bottom:14px}
+ input{flex:1;min-width:0;padding:11px 12px;font-size:17px;letter-spacing:.06em;
+       text-transform:uppercase;background:#0e1713;color:var(--fg);
+       border:1px solid var(--line);border-radius:8px}
+ input:focus{outline:none;border-color:var(--acc)}
+ button{padding:11px 18px;font-size:15px;font-weight:600;background:var(--acc);
+        color:#04120f;border:0;border-radius:8px}
+ #out{min-height:40px}
+ .px{font-size:1.9em;font-weight:700;letter-spacing:-.01em}
+ .sym{font-size:1.25em;font-weight:700;margin-right:10px}
+ .meta{color:var(--dim);font-size:.82em;margin:6px 0 14px;line-height:1.5}
+ table{width:100%;border-collapse:collapse;font-size:.9em}
+ th,td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);
+       white-space:nowrap}
+ th{color:var(--dim);font-weight:500;font-size:.85em}
+ th:first-child,td:first-child{text-align:left;font-weight:700}
+ .up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat)}
+ .dim{color:var(--dim)}.acc{color:var(--acc)}
+ .warn{border-left:3px solid var(--flat);background:#17140c;padding:9px 12px;
+       border-radius:4px;margin:12px 0;font-size:.85em;color:var(--flat)}
+ .note{color:var(--dim);font-size:.8em;margin-top:14px;line-height:1.6}
+ .err{color:var(--down);padding:10px 0}
+</style></head><body>
+
+<h1>1D / 5D / 1M read — type a ticker</h1>
+<form id="f" autocomplete="off">
+  <input id="q" list="syms" placeholder="META" required
+         inputmode="text" autocapitalize="characters" spellcheck="false">
+  <datalist id="syms"></datalist>
+  <button>Read</button>
+</form>
+<div id="out"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const n = (v,d=2) => v.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+let IDX = null;
+
+// The index doubles as the autocomplete source and as the only honest way to say
+// "not built" — a symbol that is simply absent must not render an empty card.
+// Kept as a PROMISE and awaited before rendering: a deep-link (#NVDA) fires at load,
+// which raced the fetch and printed the build stamp as "Built — · — tickers".
+const IDXP = fetch('h/index.json', {cache:'no-cache'}).then(r=>r.json()).then(d=>{
+  IDX = d;
+  $('#syms').innerHTML = d.symbols.map(s=>`<option value="${s}">`).join('');
+  return d;
+}).catch(()=>null);
+
+// The action is the regime crossed with what YOU hold — this page cannot know that,
+// so it prints both columns rather than guessing one. An edge at or below zero
+// forbids OPENING or ADDING: the model may not claim a direction it has been
+// measured not to know. It may still justify holding, because the exit level is a
+// risk statement, not a direction call.
+function actions(regime, edge){
+  if (regime === 'OUT')   return [['SELL','down'], ['STAND ASIDE','dim']];
+  if (regime === 'WATCH') return [['HOLD','flat'], ['NO TRADE','dim']];
+  return edge > 0 ? [['HOLD','up'], ['BUY','up']]
+                  : [['HOLD','flat'], ['NO TRADE','dim']];
+}
+
+function render(d){
+  const chg = d.change_pct, c = chg >= 0 ? 'up' : 'down';
+  const rows = d.rows.map(r=>{
+    const [held, flat] = actions(d.regime, r.edge);
+    const ec = r.edge > 2 ? 'up' : (r.edge > -2 ? 'flat' : 'down');
+    return `<tr><td>${r.label}</td>
+      <td class="${held[1]}">${held[0]}</td><td class="${flat[1]}">${flat[0]}</td>
+      <td>${n(r.lo,0)} – ${n(r.hi,0)}</td>
+      <td class="dim">${n(r.band_pct,0)}%</td>
+      <td class="${ec}">${r.edge>0?'+':''}${n(r.edge,0)}pp</td></tr>`;
+  }).join('');
+
+  const s = d.suitability;
+  const warn = s.ok ? '' : `<div class="warn"><b>Outside the model's universe</b> —
+      ${s.fails.join('; ')}. The numbers below are still measured on this stock's own
+      ${d.bars} bars, but the rule was not built for names like this.</div>`;
+
+  $('#out').innerHTML = `
+    <div><span class="sym">${d.symbol}</span>
+      <span class="px ${c}">${n(d.price)}</span>
+      <span class="${c}"> ${chg>=0?'+':''}${n(chg)}%</span></div>
+    <div class="meta">
+      close of <b>${d.last_bar}</b> — not a live price ·
+      regime ${d.regime} · exit below ${n(d.invalidation)}
+      (${n((d.price-d.invalidation)/d.price*100,1)}% away)<br>
+      ATR ${n(d.atr_pct,1)}% · MA20 ${n(d.sma20,0)}${d.sma200?` · MA200 ${n(d.sma200,0)}`:''}
+      · ${n(d.r52.pos,0)}% of the 52-week range<br>
+      ${d.bars} bars ${d.first}→${d.last_bar} · rule long-only ×${n(d.rule_x)}
+      vs buy-and-hold ×${n(d.hold_x)}
+    </div>
+    ${warn}
+    <table><tr><th>horizon</th><th>if you hold</th><th>if you're flat</th>
+      <th>expected range</th><th>band held</th><th>edge</th></tr>${rows}</table>
+    <div class="note"><b>edge</b> = the model's hit-rate minus the share of windows this
+      stock rose anyway. At or below zero the direction call adds nothing and only the
+      band is worth reading. <b>band held</b> = how often the close actually landed
+      inside that range.<br>
+      Built ${IDX ? IDX.generated : '—'} · ${IDX ? IDX.count : '—'} ticker${IDX && IDX.count===1?'':'s'}.</div>`;
+}
+
+async function look(sym){
+  $('#out').innerHTML = '<div class="dim">reading…</div>';
+  await IDXP;                       // the card carries the build stamp; do not draw it blank
+  try {
+    const r = await fetch(`h/${sym}.json`, {cache:'no-cache'});
+    if (!r.ok) throw 0;
+    render(await r.json());
+  } catch {
+    $('#out').innerHTML = `<div class="err">${sym} is not built.</div>
+      <div class="note">This page only holds tickers prebuilt by the nightly job${
+        IDX ? ` (${IDX.count} of them)` : ''}. For anything else, ask Claude:
+        <code>./horizons.sh ${sym}</code>.</div>`;
+  }
+}
+
+$('#f').addEventListener('submit', e => {
+  e.preventDefault();
+  const s = $('#q').value.trim().toUpperCase();
+  if (s) { look(s); location.hash = s; }
+});
+// Deep-link: ask.html#NVDA opens straight on that ticker.
+addEventListener('hashchange', () => { const s=location.hash.slice(1); if(s){$('#q').value=s; look(s);} });
+if (location.hash.length > 1) { $('#q').value = location.hash.slice(1).toUpperCase(); look($('#q').value); }
+</script></body></html>
