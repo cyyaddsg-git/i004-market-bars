@@ -70,6 +70,16 @@ function actions(regime, edge){
                   : [['HOLD','flat'], ['NO TRADE','dim']];
 }
 
+// An OUT name has no exit level to quote — it is already out. The actionable
+// number there is the RE-ENTRY, and printing "exit below X (-3.0% away)" for a
+// price sitting under X reads as a negative distance to a stop that does not apply.
+function lvl(d){
+  const away = p => n(Math.abs(d.price - p) / d.price * 100, 1) + '% away';
+  return d.regime === 'OUT'
+    ? `re-entry above ${n(d.reentry)} (${away(d.reentry)})`
+    : `exit below ${n(d.invalidation)} (${away(d.invalidation)})`;
+}
+
 function render(d){
   const chg = d.change_pct, c = chg >= 0 ? 'up' : 'down';
   const rows = d.rows.map(r=>{
@@ -92,9 +102,8 @@ function render(d){
       <span class="px ${c}">${n(d.price)}</span>
       <span class="${c}"> ${chg>=0?'+':''}${n(chg)}%</span></div>
     <div class="meta">
-      close of <b>${d.last_bar}</b> — not a live price ·
-      regime ${d.regime} · exit below ${n(d.invalidation)}
-      (${n((d.price-d.invalidation)/d.price*100,1)}% away)<br>
+      close of <b>${d.last_bar}</b> — not a live price · regime ${d.regime} ·
+      ${lvl(d)}<br>
       ATR ${n(d.atr_pct,1)}% · MA20 ${n(d.sma20,0)}${d.sma200?` · MA200 ${n(d.sma200,0)}`:''}
       · ${n(d.r52.pos,0)}% of the 52-week range<br>
       ${d.bars} bars ${d.first}→${d.last_bar} · rule long-only ×${n(d.rule_x)}
