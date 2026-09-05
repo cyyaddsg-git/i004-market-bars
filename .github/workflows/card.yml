@@ -1,21 +1,16 @@
 name: daily card
 
+# NO GitHub `schedule:` HERE, deliberately.
+#
+# GitHub's cron fires for this repo but drifts by HOURS: a 12:45 UTC schedule was
+# observed starting at 16:36, 16:42, 16:52, 19:15 and 22:42 UTC on consecutive days.
+# The late run then OVERWROTE the on-time dispatch -- which is exactly why the card
+# page was last stamped 00:37 SGT instead of the requested hour.
+#
+# The Claude cloud routine is the only trigger now. Measured 12/12 fires with 4-224s
+# drift. Routines: https://claude.ai/code/routines
+# This workflow is started by the routine: i004 daily card — 09:00 SGT (predict)
 on:
-  schedule:
-    # YY's requirement (2026-09-05): one prediction pre-market, 09:00 SGT.
-    #
-    #   01:00 UTC = 09:00 SGT = 21:00 ET the previous day. The US session this
-    #   predicts for opens at 21:30 SGT the same evening, so YY reads the card in
-    #   the morning and has all day to decide.
-    #   Mon-Fri in UTC maps to Mon-Fri sessions.
-    #
-    # Runs one hour AFTER settle.yml, which is required, not tidy: a prediction
-    # lodged against unfilled orders reads the position as flat and buys twice.
-    # daily.py --predict settles and fills again itself, as a catch-up.
-    #
-    # The ET clock is the PREVIOUS day at this hour, so the session date is
-    # derived (daily.py next_session), never taken from the clock.
-    - cron: "0 1 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:

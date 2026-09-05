@@ -6,9 +6,17 @@ name: prebuild horizons
 # 22:10 UTC = 18:10 ET, ~2h after the US close. GitHub's scheduler drifts by hours
 # on this repo (measured: requested 12:45 UTC, observed 16:36-22:42), so nothing
 # here may depend on the exact minute — it reads completed bars only.
+# NO GitHub `schedule:` HERE, deliberately.
+#
+# GitHub's cron fires for this repo but drifts by HOURS: a 12:45 UTC schedule was
+# observed starting at 16:36, 16:42, 16:52, 19:15 and 22:42 UTC on consecutive days.
+# The late run then OVERWROTE the on-time dispatch -- which is exactly why the card
+# page was last stamped 00:37 SGT instead of the requested hour.
+#
+# The Claude cloud routine is the only trigger now. Measured 12/12 fires with 4-224s
+# drift. Routines: https://claude.ai/code/routines
+# This workflow is started by the routine: i004 prebuild horizons — 06:10 SGT
 on:
-  schedule:
-    - cron: "10 22 * * 1-5"
   workflow_dispatch:
     inputs:
       limit:
