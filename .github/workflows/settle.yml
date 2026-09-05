@@ -1,0 +1,64 @@
+name: settle
+
+# YY's requirement (2026-09-05): one prediction result marking after the market
+# closes, 08:00 SGT.
+#
+#   00:00 UTC = 08:00 SGT = 20:00 ET the previous day = 4h after the 16:00 ET close.
+#   Tue-Sat in UTC, because 00:00 UTC Tuesday scores MONDAY's session. Monday is
+#   excluded: at 00:00 UTC Monday the last closed session is Friday, which
+#   Saturday's run already scored.
+#
+# Runs BEFORE the 01:00 UTC prediction, and that order is a requirement, not a
+# preference: a prediction lodged against unfilled orders reads the position as
+# flat and buys the same name twice.
+#
+# Touches no market API. It needs nothing Webull has, so an auth failure cannot
+# stop yesterday's score from being recorded.
+on:
+  schedule:
+    - cron: "0 0 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "score and print, write nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-card          # shared with card.yml — the two must never overlap
+  cancel-in-progress: false
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: settle yesterday
+        run: python engine/daily.py --settle ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # docs/sim.html is a SIMULATED book, so it legitimately says "equity". It
+      # must still never carry the real deposited figure.
+      - name: refuse to publish the real account figure
+        env:
+          ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
+        run: |
+          if [ -f docs/sim.html ] && [ -n "$ACCOUNT_DEPOSITED" ] \
+             && grep -qF "$ACCOUNT_DEPOSITED" docs/sim.html; then
+            echo "::error::the real account figure appears in the simulated page"
+            exit 1
+          fi
+
+      - name: commit
+        run: |
+          git config user.name  "i004-bot"
+          git config user.email "i004-bot@users.noreply.github.com"
+          git add data/predictions.csv data/orders.csv data/book.json docs/sim.html
+          git diff --staged --quiet || git commit -m "settle: $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash -q
+          git push

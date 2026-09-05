@@ -2,19 +2,24 @@ name: daily card
 
 on:
   schedule:
-    # KEPT BUT NOT RELIED ON. GitHub's scheduler has never fired for this repo:
-    # 0 schedule events across 60+ runs, plus a dedicated probe cron on
-    # 2026-08-28 that also produced nothing in 30 minutes. Both workflows report
-    # active, the repo is public, the crons are on the default branch — none of
-    # the usual causes apply. The real trigger is now a Claude cloud routine
-    # calling workflow_dispatch (proven 2026-08-28 01:58:22Z; fires 12/12,
-    # 4-224s drift). This line stays so that if GitHub ever starts working, it
-    # simply takes over. 12:45 UTC = 20:45 SGT, 45 min before the US open.
-    - cron: "45 12 * * 1-5"
+    # YY's requirement (2026-09-05): one prediction pre-market, 09:00 SGT.
+    #
+    #   01:00 UTC = 09:00 SGT = 21:00 ET the previous day. The US session this
+    #   predicts for opens at 21:30 SGT the same evening, so YY reads the card in
+    #   the morning and has all day to decide.
+    #   Mon-Fri in UTC maps to Mon-Fri sessions.
+    #
+    # Runs one hour AFTER settle.yml, which is required, not tidy: a prediction
+    # lodged against unfilled orders reads the position as flat and buys twice.
+    # daily.py --predict settles and fills again itself, as a catch-up.
+    #
+    # The ET clock is the PREVIOUS day at this hour, so the session date is
+    # derived (daily.py next_session), never taken from the clock.
+    - cron: "0 1 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "build only, send no email"
+        description: "build and print, write nothing and send nothing"
         type: boolean
         default: false
 
@@ -57,7 +62,7 @@ jobs:
           REPORT_TO:         ${{ secrets.REPORT_TO }}
           ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
         run: |
-          python engine/daily.py ${{ inputs.dry_run && '--dry-run' || '' }}
+          python engine/daily.py --predict ${{ inputs.dry_run && '--dry-run' || '' }}
 
       # docs/index.html is PUBLIC. daily.py never writes account data into it;
       # this is the belt-and-braces check, because a leak here is irreversible.
@@ -85,4 +90,5 @@ jobs:
           git add docs/index.html docs/sim.html \
                   data/predictions.csv data/orders.csv data/book.json
           git diff --staged --quiet || git commit -m "card: $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash -q
           git push
