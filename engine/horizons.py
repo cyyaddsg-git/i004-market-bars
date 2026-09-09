@@ -54,7 +54,7 @@ def live_price(sym: str) -> tuple[float | None, str]:
 
 
 def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
-             account: bool = True) -> dict:
+             account: bool = True, live: bool | None = None) -> dict:
     """One symbol -> the 1D/5D/1M read.
 
     bars=None pulls from Webull. Pass bars to score a symbol Webull will not serve
@@ -63,6 +63,11 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
     account=False keeps holdings and the live-position lookup out entirely. The
     public JSON is built with it OFF — plan R12: a file served from a public repo
     must not be able to carry account data even by accident.
+
+    live= controls only the PRICE lookup, which is not account data and was wrongly
+    tied to `account`. The hosted API (api/app.py) needs a live price and must never
+    see holdings, so it passes account=False, live=True. Default None keeps the old
+    behaviour: live follows account.
     """
     bars = _sorted_oldest_first(bars if bars is not None else feed.bars(sym, count=count))
     if len(bars) < MA_N + ATR_N + 2:
@@ -73,7 +78,7 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
     closes = [b["close"] for b in bars]
     a, m, state, last = atr[-1], sma[-1], states[-1], bars[-1]
 
-    px, src = live_price(sym) if account else (None, "close")
+    px, src = live_price(sym) if (account if live is None else live) else (None, "close")
     price = px or last["close"]
     res = {"symbol": sym, "price": price, "src": src, "regime": state,
            "prev_close": last["close"], "last_bar": last["date"], "bars": len(bars),

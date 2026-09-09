@@ -1,1 +1,137 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60"><title>i004 &middot; intraday</title><link rel="icon" href="data:,"></head><body style="margin:0;padding:16px;background:#080d0a;"><div style="background:#0F1712;color:#F2F0E9;padding:18px 20px;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;line-height:1.7;max-width:640px;"><span style="color:#F2F0E9;font-weight:600;">NVDA</span>&nbsp;&nbsp;<span style="color:#4ADE80;font-weight:600;">226.44</span>&nbsp;&nbsp;<span style="color:#4ADE80;">+8.01%</span>&nbsp;&nbsp;<span style="color:#8fa3b6;">03:13 SGT</span><br><br><span style="color:#4ADE80;font-weight:600;">LONG</span><br><br><span style="color:#8fa3b6;">entry&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:#F2F0E9;font-weight:600;">226.44</span><br><span style="color:#8fa3b6;">stop&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:#FF6B6B;font-weight:600;">225.81</span><span style="color:#8fa3b6;">&nbsp; 0.63/sh &middot; 0.28%</span><br><span style="color:#8fa3b6;">target&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:#4ADE80;font-weight:600;">227.70</span><span style="color:#8fa3b6;">&nbsp; 2.0R</span><br><span style="color:#8fa3b6;">size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:#F2F0E9;">88 sh</span><span style="color:#8fa3b6;">&nbsp; risk $55 &middot; notional $19,927</span><br><br><span style="color:#8fa3b6;">tape&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:#8fa3b6;">VWAP 225.99 &middot; opening 30m 220.90&ndash;225.83 &middot; session 220.90&ndash;230.47 &middot; 217.8M shares &middot; ATR 0.71</span><br><br><span style="color:#E8B84B;">Not an order. Trigger and invalidation only &mdash; you place it.</span></div></body></html>
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>i004 · intraday</title><link rel="icon" href="data:,">
+<style>
+  :root{--bg:#080d0a;--card:#0F1712;--ink:#F2F0E9;--dim:#8fa3b6;--up:#4ADE80;--dn:#FF6B6B;--warn:#E8B84B}
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--ink);
+       font:14px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .card{background:var(--card);padding:18px 20px;border-radius:10px;max-width:640px;margin:0 auto 14px}
+  form{display:flex;gap:8px;max-width:640px;margin:0 auto 14px}
+  input{flex:1;min-width:0;background:var(--card);color:var(--ink);border:1px solid #24332a;
+        border-radius:10px;padding:14px 16px;font:inherit;font-size:16px;text-transform:uppercase}
+  input:focus{outline:none;border-color:var(--up)}
+  button{background:var(--up);color:#06210f;border:0;border-radius:10px;padding:14px 22px;
+         font:inherit;font-weight:700;font-size:16px}
+  button:disabled{opacity:.45}
+  .dim{color:var(--dim)} .up{color:var(--up)} .dn{color:var(--dn)} .warn{color:var(--warn)}
+  .big{font-weight:600} .sp{margin-top:14px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  td,th{padding:4px 0;text-align:right} td:first-child,th:first-child{text-align:left}
+  th{color:var(--dim);font-weight:400}
+</style></head><body>
+
+<form id="f"><input id="q" placeholder="ticker — e.g. NVDA" autocapitalize="characters"
+  autocomplete="off" spellcheck="false"><button id="go">Go</button></form>
+<div id="out"></div>
+
+<script>
+// The published site is static, and no quote provider sends CORS headers, so the
+// browser cannot pull live bars itself (measured 2026-09-08). This calls the one
+// hosted hop, which runs engine/intraday.py and engine/horizons.py UNCHANGED --
+// there is deliberately no second copy of the rule in JavaScript to drift.
+const API = 'https://i004-market-api.onrender.com';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const sgt = () => new Date().toLocaleTimeString('en-GB',
+  {timeZone:'Asia/Singapore', hour:'2-digit', minute:'2-digit'}) + ' SGT';
+const num = (v, d=2) => (v === null || v === undefined) ? '—' : Number(v).toFixed(d);
+// A $0.90 stock and a $350 stock cannot share a format. Fixed 2dp is why the
+// terminal card printed ORBS as "1 – 1" and "MA20 1".
+const dp = v => Math.abs(v) >= 10 ? 2 : Math.abs(v) >= 1 ? 3 : 4;
+const px = v => (v === null || v === undefined) ? '—' : Number(v).toFixed(dp(v));
+// A range must use ONE precision or the two ends do not read as the same scale:
+// "0.9819 – 1.298" looks like a typo. The wider end sets it.
+const rng = (a, b) => (a == null || b == null) ? '—'
+  : (d => `${Number(a).toFixed(d)} – ${Number(b).toFixed(d)}`)(Math.max(dp(a), dp(b)));
+
+function card(h){ return `<div class="card">${h}</div>`; }
+
+function head(d){
+  const c = d.change_pct, k = c >= 0 ? 'up' : 'dn';
+  const stale = d.src === 'close';
+  return `<span class="big">${esc(d.symbol)}</span>&nbsp;&nbsp;`
+    + `<span class="big ${k}">${px(d.price)}</span>&nbsp;&nbsp;`
+    + `<span class="${k}">${c >= 0 ? '+' : ''}${num(c)}%</span>&nbsp;&nbsp;`
+    + `<span class="dim">${sgt()} · ${esc(d.src || d.source || '?')}</span>`
+    + (stale ? `<br><span class="warn">last CLOSE, not a live price — say so rather than imply live</span>` : '');
+}
+
+function horizons(d){
+  const rows = (d.rows || []).map(r => `<tr><td>${esc(r.label)}</td>`
+    + `<td>${rng(r.lo, r.hi)}</td>`
+    + `<td class="dim">±${num(r.half_pct,1)}%</td>`
+    + `<td class="dim">${num(r.band_pct,0)}%</td>`
+    + `<td class="${r.edge >= 0 ? 'up' : 'dn'}">${r.edge >= 0 ? '+' : ''}${num(r.edge,0)}pp</td></tr>`).join('');
+  return card(head(d)
+    + `<table><tr><th></th><th>expected range</th><th></th><th>band</th><th>edge vs hold</th></tr>${rows}</table>`
+    + `<div class="sp dim">regime ${esc(d.regime)} · exit below ${px(d.invalidation)}`
+    + ` · ATR ${num(d.atr_pct,1)}% · bars to ${esc(d.last_bar)}</div>`
+    + `<div class="dim">edge = hit-rate minus the share of windows the stock rose anyway.`
+    + ` 0 or below means the direction call adds nothing.</div>`);
+}
+
+function setup(d){
+  if (d.side === 'NO SETUP')
+    return card(`<span class="warn big">NO SETUP</span><br><span class="dim">${esc(d.why)}</span>`
+      + `<div class="sp dim">${esc(d.symbol)} · ${esc(d.timespan)} · session ${esc(d.session)}`
+      + ` · ${d.bars_today} bars in · ${esc(d.source||'')}</div>`);
+  const k = d.side === 'LONG' ? 'up' : 'dn';
+  return card(`<span class="big ${k}">${esc(d.side)}</span>`
+    + `<table>`
+    + `<tr><td class="dim">entry</td><td class="big">${px(d.entry)}</td></tr>`
+    + `<tr><td class="dim">stop</td><td class="big dn">${px(d.stop)}</td>`
+    + `<td class="dim">${px(d.risk_per_share)}/sh · ${num(d.risk_pct_of_price)}%</td></tr>`
+    + `<tr><td class="dim">target</td><td class="big up">${px(d.target)}</td>`
+    + `<td class="dim">${num(d.r_multiple,1)}R</td></tr>`
+    + `<tr><td class="dim">size</td><td>${d.qty} sh</td>`
+    + `<td class="dim">risk $${Math.round(d.risk_dollars).toLocaleString()}</td></tr>`
+    + `</table>`
+    + `<div class="sp dim">VWAP ${px(d.vwap)} · opening 30m ${rng(d.orb_low, d.orb_high)}`
+    + ` · session ${rng(d.session_low, d.session_high)} · ATR ${px(d.atr)}</div>`
+    + `<div class="dim">${esc(d.symbol)} · ${esc(d.timespan)} · ${esc(d.session)}`
+    + ` · ${d.bars_today} bars in · ${esc(d.source||'')}</div>`
+    + `<div class="sp warn">Not an order. Trigger and invalidation only — you place it.</div>`);
+}
+
+async function get(path){
+  const r = await fetch(`${API}${path}`, {cache:'no-store'});
+  const j = await r.json().catch(() => ({error:`HTTP ${r.status}`}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+let busy = false;
+async function run(sym){
+  if (busy) return; busy = true; $('#go').disabled = true;
+  // The free host sleeps after 15 idle minutes, so the first call of a session
+  // takes ~40s. Saying so beats a page that looks broken.
+  $('#out').innerHTML = card(`<span class="dim">reading ${esc(sym)} …`
+    + `<br>first request after an idle spell wakes the server — up to 60s</span>`);
+  location.hash = sym;
+  try {
+    const [h, i] = await Promise.allSettled([get(`/horizons?sym=${sym}`),
+                                             get(`/intraday?sym=${sym}&tf=M5`)]);
+    let html = '';
+    html += h.status === 'fulfilled' ? horizons(h.value)
+          : card(`<span class="dn">1D/5D/1M unavailable</span><br><span class="dim">${esc(h.reason.message)}</span>`);
+    html += i.status === 'fulfilled' ? setup(i.value)
+          : card(`<span class="dn">intraday unavailable</span><br><span class="dim">${esc(i.reason.message)}</span>`);
+    $('#out').innerHTML = html;
+  } catch (e) {
+    $('#out').innerHTML = card(`<span class="dn">failed</span><br><span class="dim">${esc(e.message)}</span>`);
+  }
+  busy = false; $('#go').disabled = false;
+}
+
+$('#f').addEventListener('submit', e => {
+  e.preventDefault();
+  const s = $('#q').value.trim().toUpperCase();
+  if (/^[A-Z]{1,6}$/.test(s)) run(s);
+  else $('#out').innerHTML = card('<span class="warn">1–6 letters, e.g. NVDA</span>');
+});
+
+const boot = (location.hash || '').replace('#','').toUpperCase();
+if (/^[A-Z]{1,6}$/.test(boot)) { $('#q').value = boot; run(boot); }
+</script></body></html>

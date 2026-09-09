@@ -74,8 +74,10 @@ def atr(bs: list[dict], n: int = 14) -> float | None:
     return a
 
 
-def read(symbol: str, timespan: str = "M5") -> dict:
-    bs = bars(symbol, timespan)
+def read(symbol: str, timespan: str = "M5", bs: list[dict] | None = None) -> dict:
+    """bs=None pulls from Webull. Pass bars to score off another source -- that is
+    how the hosted API (api/app.py) falls back to Yahoo without a broker key."""
+    bs = bars(symbol, timespan) if bs is None else sorted(bs, key=lambda b: b["t"])
     if not bs:
         raise SystemExit(f"{symbol}: the API returned no {timespan} bars — "
                          f"a FAILED read, not 'no data'")

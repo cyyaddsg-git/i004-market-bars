@@ -1,0 +1,27 @@
+# i004 market API. One free web service; the Pages site stays static.
+#
+# WEBULL_* are set in the Render dashboard, never here -- this repo is PUBLIC.
+# WEBULL_TOOLSETS deliberately OMITS `account`: the host reads prices and must
+# not be able to read YY's positions or balance.
+services:
+  - type: web
+    name: i004-market-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r api/requirements.txt
+    startCommand: gunicorn --chdir api app:app --bind 0.0.0.0:$PORT --timeout 60 --workers 1
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: WEBULL_TOOLSETS
+        value: market-data,instrument
+      - key: WEBULL_APP_KEY
+        sync: false
+      - key: WEBULL_APP_SECRET
+        sync: false
+      - key: WEBULL_REGION_ID
+        sync: false
+      - key: WEBULL_ENVIRONMENT
+        sync: false
