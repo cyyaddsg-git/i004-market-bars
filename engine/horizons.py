@@ -157,17 +157,36 @@ def action(r: dict, row: dict) -> tuple[str, str]:
     return ("HOLD", G) if held else ("BUY", G)
 
 
+def _dp(v: float) -> int:
+    """Decimals for a price. Fixed formatting assumed a $100 stock: ORBS at $0.90
+    printed its band as "1 – 1", MA20 as "1" and the 52-week position as "1%",
+    which is not a rounding nuisance but an unreadable card. Scale instead."""
+    v = abs(v)
+    return 2 if v >= 10 else 3 if v >= 1 else 4
+
+
+def _px(v: float, width: int = 0) -> str:
+    return f"{v:>{width},.{_dp(v)}f}" if width else f"{v:,.{_dp(v)}f}"
+
+
+def _rng(lo: float, hi: float, w_lo: int = 0, w_hi: int = 0) -> tuple[str, str]:
+    """Both ends of a range share ONE precision. "0.9819 – 1.298" reads as a typo;
+    the end needing more decimals sets it for both."""
+    d = max(_dp(lo), _dp(hi))
+    return f"{lo:>{w_lo},.{d}f}", f"{hi:>{w_hi},.{d}f}"
+
+
 def main() -> None:
     for sym in (sys.argv[1:] or ["META"]):
         r = evaluate(sym)
         c = G if r["change_pct"] >= 0 else R
         print(f"\n{D}{render.stamp()}{X}")
-        head = (f"\n{B}{r['symbol']:<6}{X}{c}{r['price']:>8,.2f}  "
+        head = (f"\n{B}{r['symbol']:<6}{X}{c}{_px(r['price'], 8)}  "
                 f"{r['change_pct']:+.2f}%{X}")
         if r["held"] and r["held"]["qty"]:
             h = r["held"]
             uc = G if h["upl"] >= 0 else R
-            head += (f"   {D}holding {h['qty']:.0f} @ {h['cost']:,.2f} "
+            head += (f"   {D}holding {h['qty']:.0f} @ {_px(h['cost'])} "
                      f"{uc}{h['upl']:+,.0f}{X}")
         print(head + f"   {D}({r['src']}){X}")
 
@@ -177,15 +196,16 @@ def main() -> None:
             act, col = action(r, row)
             e = row["edge"]
             ec = G if e > 2 else (Y if e > -2 else R)
+            lo, hi = _rng(row["lo"], row["hi"], 10, 8)
             print(f"{B}{row['label']:<5}{X}{col}{act:<14}{X}"
-                  f"{row['lo']:>10,.0f} –{row['hi']:>8,.0f}{D} ±{row['half_pct']:.1f}%{X}"
+                  f"{lo} –{hi}{D} ±{row['half_pct']:.1f}%{X}"
                   f"{row['band_pct']:>9.0f}%{ec}{e:>13.0f}pp{X}")
 
-        print(f"\n{D}regime {r['regime']} · exit below {r['invalidation']:,.2f} "
+        print(f"\n{D}regime {r['regime']} · exit below {_px(r['invalidation'])} "
               f"({(r['price']-r['invalidation'])/r['price']*100:.1f}% away) · "
-              f"ATR {r['atr_pct']:.1f}% · MA20 {r['sma20']:,.0f}"
-              + (f" · MA200 {r['sma200']:,.0f}" if "sma200" in r else "")
-              + f" · 52w {r['r52']['pos']:.0f}% of range{X}")
+              f"ATR {r['atr_pct']:.1f}% · MA20 {_px(r['sma20'])}"
+              + (f" · MA200 {_px(r['sma200'])}" if "sma200" in r else "")
+              + f" · 52w {r['r52']['pos']:.1f}% of range{X}")
         print(f"{D}trailing closed bars: 1D {r['rows'][0]['moved']:+.1f}% · 5D {r['rows'][1]['moved']:+.1f}%"
               f" · 1M {r['rows'][2]['moved']:+.1f}%{X}")
         print(f"{D}{r['bars']} bars {r['first']}→{r['last_bar']} · rule long-only "
