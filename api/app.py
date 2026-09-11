@@ -178,6 +178,43 @@ def r_horizons():
                    detail=errs), 502
 
 
+@app.get("/card")
+def r_card():
+    """The whole watchlist, advice only -- what the Card tab needs to recompute on
+    Reload instead of showing this morning's snapshot until tomorrow.
+
+    NOT card.build(): that calls feed.positions() and feed.equity_usd(). This runs
+    the same analyse() with held=None and no account lookup at all, so the response
+    cannot carry a holding, a balance or a P&L even by accident.
+    """
+    import json as _json
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "engine"))
+    from indicators import analyse                                 # noqa: PLC0415
+    import feed                                                    # noqa: PLC0415
+    cfg = _json.load(open(os.path.join(os.path.dirname(HERE), "engine", "config.json")))
+    syms = cfg["watchlist"]
+    rows, errs = [], []
+    for sym in syms:
+        try:
+            bars = feed.bars(sym, count=90)
+            if not bars:
+                errs.append(f"{sym}: no bars")
+                continue
+            px, _ = _live_price(sym)
+            r = analyse(sym, bars, cfg, live_price=px, held=None)
+            # analyse() still emits held_qty (0 here). Strip every position-shaped
+            # key by name rather than trust that it stays 0 -- R12 says a public
+            # response must not be ABLE to carry account data, not merely not today.
+            for _k in ("held", "held_qty", "upl", "qty", "cost", "equity", "deposited"):
+                r.pop(_k, None)
+            rows.append(r)
+        except (Exception, SystemExit) as e:                       # noqa: BLE001
+            errs.append(f"{sym}: {type(e).__name__}"[:80])
+    if not rows:
+        return jsonify(error="no symbol could be evaluated", detail=errs), 502
+    return jsonify(rows=rows, errors=errs, source="webull" if HAS_WEBULL else "yahoo")
+
+
 @app.errorhandler(500)
 def boom(e):
     return jsonify(error="internal", detail=traceback.format_exc()[-400:]), 500

@@ -149,7 +149,12 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
 
         col = UP if r["change_pct"] >= 0 else DOWN
         pct = f"{r['change_pct']:+.2f}%"
-        head = f"{sym}&nbsp;&nbsp;{sp(money(r['price']) + '  ' + pct, col, True)}"
+        # data-px marks the one node the live refresh rewrites. Everything else on
+        # the row stays as built, so a failed refresh degrades to the snapshot
+        # rather than to a half-updated card.
+        head = (f"{sym}&nbsp;&nbsp;<span data-px "
+                f"style=\"color:{col};font-weight:600;\">"
+                f"{money(r['price'])}  {pct}</span>")
         if private and r.get("held_qty"):
             u = r.get("upl", 0)
             head += ("&nbsp;&nbsp;" + sp(f"holding {r['held_qty']:,.0f} @ {money(r['cost'])} ", DIM)
@@ -189,9 +194,9 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
                      + sp("&nbsp; 1M ", DIM) + c(a["m1"]) + sp("&nbsp; 1Y ", DIM) + c(a["y1"])
                      + sp("&nbsp; · band ", DIM) + c(a["band"])
                      + sp(f"&nbsp; ({a['bars']} bars)", DIM))
-        blocks.append(body)
+        blocks.append(f'<span data-sym="{r["symbol"]}">{body}</span>')
 
-    header = sp(stamp(), DIM)
+    header = f'<span data-stamp style="color:{DIM};">{stamp()}</span>'
     if private and account:
         header += "<br>" + "<br>".join(sp(ln, DIM) for ln in account_lines(account))
 
@@ -210,6 +215,41 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
             f'{header}<br><br>' + "<br><br>".join(blocks) + note + '</div>')
 
 
+# Pressing Reload used to re-fetch a page that only changes at 09:00 SGT, so
+# mid-session it was a no-op. This asks the API to recompute instead. The baked
+# HTML stays exactly as it was and is what you see if the API is unreachable --
+# a snapshot that says WHEN it was taken beats a blank page, and beats a live
+# card that silently falls back to stale numbers without saying so.
+LIVE_JS = """
+<script>
+(async () => {
+  const stamp = document.querySelector('[data-stamp]');
+  try {
+    const cfg = await (await fetch('api.json', {cache:'no-store'})).json();
+    const r = await fetch(cfg.url + '/card', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const by = Object.fromEntries(d.rows.map(x => [x.symbol, x]));
+    document.querySelectorAll('[data-sym]').forEach(el => {
+      const x = by[el.getAttribute('data-sym')];
+      if (!x) return;
+      const up = x.change_pct >= 0;
+      el.querySelectorAll('[data-px]').forEach(n => {
+        n.textContent = x.price.toFixed(Math.abs(x.price) >= 10 ? 2 : 4)
+          + '  ' + (up ? '+' : '') + x.change_pct.toFixed(2) + '%';
+        n.style.color = up ? '#4ADE80' : '#FF6B6B';
+      });
+    });
+    if (stamp) stamp.textContent = stamp.textContent.split(' · ')[0]
+      + ' · recomputed ' + new Date().toLocaleTimeString('en-GB',
+        {timeZone:'Asia/Singapore', hour:'2-digit', minute:'2-digit'}) + ' SGT';
+  } catch (e) {
+    if (stamp) stamp.textContent += '  — live refresh unavailable, showing the build above';
+  }
+})();
+</script>"""
+
+
 def page(rows: list[dict], acc: dict) -> str:
     """Standalone public page. No account data, ever."""
     return (f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
@@ -218,4 +258,5 @@ def page(rows: list[dict], acc: dict) -> str:
             f'<link rel="icon" href="data:,"></head>'
             f'<body style="margin:0;padding:16px;background:#080d0a;">'
             f'{as_html(rows, acc, private=False)}'
+            f'{LIVE_JS}'
             f'</body></html>')
