@@ -1,4 +1,8 @@
 flask==3.0.3
 gunicorn==22.0.0
-webull-python-sdk-core==0.1.6
-webull-python-sdk-quotes-core==0.1.6
+# The packages that are ACTUALLY installed and working locally. The first attempt
+# used webull-python-sdk-core / -quotes-core, which pin grpcio==1.51.1 -- no wheel
+# for Python 3.12, and it fails to build from source because setuptools no longer
+# ships pkg_resources. Render build log 2026-09-11 confirms it.
+webull-openapi-python-sdk==2.0.17
+webull-openapi-mcp==1.2.2
