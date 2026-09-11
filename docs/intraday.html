@@ -66,17 +66,23 @@ function head(d){
 }
 
 function horizons(d){
+  const verdict = a => a === 'SELL' ? 'dn' : a === 'BUY' ? 'up'
+    : (a === 'NO TRADE' || a === 'STAND ASIDE' || a === 'HOLD, NO ADD') ? 'warn' : 'up';
   const rows = (d.rows || []).map(r => `<tr><td>${esc(r.label)}</td>`
+    + `<td class="${verdict(r.action)}" style="text-align:left">${esc(r.action || '—')}</td>`
     + `<td>${rng(r.lo, r.hi)}</td>`
     + `<td class="dim">±${num(r.half_pct,1)}%</td>`
     + `<td class="dim">${num(r.band_pct,0)}%</td>`
     + `<td class="${r.edge >= 0 ? 'up' : 'dn'}">${r.edge >= 0 ? '+' : ''}${num(r.edge,0)}pp</td></tr>`).join('');
   return card(head(d)
-    + `<table><tr><th></th><th>expected range</th><th></th><th>band</th><th>edge vs hold</th></tr>${rows}</table>`
+    + `<table><tr><th></th><th style="text-align:left">action</th><th>expected range</th>`
+    + `<th></th><th>band</th><th>edge vs hold</th></tr>${rows}</table>`
     + `<div class="sp dim">regime ${esc(d.regime)} · exit below ${px(d.invalidation)}`
     + ` · ATR ${num(d.atr_pct,1)}% · bars to ${esc(d.last_bar)}</div>`
     + `<div class="dim">edge = hit-rate minus the share of windows the stock rose anyway.`
-    + ` 0 or below means the direction call adds nothing.</div>`);
+    + ` 0 or below means the direction call adds nothing — which is why an edge at or below`
+    + ` zero never says BUY or ADD. It can still say HOLD: the exit level is a risk`
+    + ` statement, not a direction call.</div>`);
 }
 
 function setup(d){

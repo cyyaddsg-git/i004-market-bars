@@ -53,6 +53,24 @@ def live_price(sym: str) -> tuple[float | None, str]:
         return None, "close"
 
 
+def action(r: dict, row: dict) -> tuple[str, str]:
+    """Regime x holding x measured edge -> what to do at this horizon.
+
+    An edge at or below zero cannot justify OPENING or ADDING to a position: that
+    is the model claiming to know a direction it has been measured not to know.
+    It can still justify HOLDING what is already held, because the exit level is
+    a risk statement, not a direction call.
+    """
+    held = bool(r["held"] and r["held"]["qty"])
+    if r["regime"] == "OUT":
+        return ("SELL", R) if held else ("STAND ASIDE", D)
+    if r["regime"] == "WATCH":
+        return ("HOLD", Y) if held else ("NO TRADE", D)
+    if row["edge"] is not None and row["edge"] <= 0:
+        return ("HOLD, NO ADD", Y) if held else ("NO TRADE", D)
+    return ("HOLD", G) if held else ("BUY", G)
+
+
 def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
              account: bool = True, live: bool | None = None) -> dict:
     """One symbol -> the 1D/5D/1M read.
@@ -136,25 +154,12 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
         if states[i] == "IN":
             eq *= closes[i + 1] / closes[i]
     res["rule_x"], res["hold_x"] = eq, closes[-1] / closes[0]
+    # The action word belongs in the DATA, not only in the terminal printer. It was
+    # computed in main() alone, so docs/intraday.html rendered the edge column with
+    # no verdict beside it and YY had to derive BUY/HOLD/SELL by hand.
+    for _row in res["rows"]:
+        _row["action"] = action(res, _row)[0]
     return res
-
-
-def action(r: dict, row: dict) -> tuple[str, str]:
-    """Regime x holding x measured edge -> what to do at this horizon.
-
-    An edge at or below zero cannot justify OPENING or ADDING to a position: that
-    is the model claiming to know a direction it has been measured not to know.
-    It can still justify HOLDING what is already held, because the exit level is
-    a risk statement, not a direction call.
-    """
-    held = bool(r["held"] and r["held"]["qty"])
-    if r["regime"] == "OUT":
-        return ("SELL", R) if held else ("STAND ASIDE", D)
-    if r["regime"] == "WATCH":
-        return ("HOLD", Y) if held else ("NO TRADE", D)
-    if row["edge"] is not None and row["edge"] <= 0:
-        return ("HOLD, NO ADD", Y) if held else ("NO TRADE", D)
-    return ("HOLD", G) if held else ("BUY", G)
 
 
 def _dp(v: float) -> int:
