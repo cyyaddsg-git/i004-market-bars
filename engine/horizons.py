@@ -54,21 +54,24 @@ def live_price(sym: str) -> tuple[float | None, str]:
 
 
 def action(r: dict, row: dict) -> tuple[str, str]:
-    """Regime x holding x measured edge -> what to do at this horizon.
+    """Regime x measured edge -> what to do at this horizon.
 
-    An edge at or below zero cannot justify OPENING or ADDING to a position: that
-    is the model claiming to know a direction it has been measured not to know.
-    It can still justify HOLDING what is already held, because the exit level is
-    a risk statement, not a direction call.
+    THE ADVICE NEVER LOOKS AT WHAT YY HOLDS (YY, 2026-09-12: *"advice never check /
+    need to know my holdings. it is only BUY/HOLD/SELL hold=notrade"*). Reading the
+    position made the same market produce two different verdicts, and made the card
+    an account report. The call is a property of the market, not of the book.
+
+    An edge at or below zero cannot justify BUYING: that is the model claiming a
+    direction it has been measured not to know. It says HOLD instead -- which for
+    someone flat simply means do nothing.
     """
-    held = bool(r["held"] and r["held"]["qty"])
     if r["regime"] == "OUT":
-        return ("SELL", R) if held else ("STAND ASIDE", D)
+        return ("SELL", R)
     if r["regime"] == "WATCH":
-        return ("HOLD", Y) if held else ("NO TRADE", D)
+        return ("HOLD", Y)
     if row["edge"] is not None and row["edge"] <= 0:
-        return ("HOLD, NO ADD", Y) if held else ("NO TRADE", D)
-    return ("HOLD", G) if held else ("BUY", G)
+        return ("HOLD", Y)
+    return ("BUY", G)
 
 
 def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
@@ -104,7 +107,7 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
            "invalidation": m - HYST * a, "reentry": m + HYST * a,
            "change_pct": (price / last["close"] - 1) * 100 if px else
                          (last["close"] / closes[-2] - 1) * 100,
-           "held": feed.positions().get(sym) if account else None, "rows": []}
+           "rows": []}
     for n in (50, 200):
         if len(closes) >= n:
             res[f"sma{n}"] = sum(closes[-n:]) / n
@@ -188,11 +191,6 @@ def main() -> None:
         print(f"\n{D}{render.stamp()}{X}")
         head = (f"\n{B}{r['symbol']:<6}{X}{c}{_px(r['price'], 8)}  "
                 f"{r['change_pct']:+.2f}%{X}")
-        if r["held"] and r["held"]["qty"]:
-            h = r["held"]
-            uc = G if h["upl"] >= 0 else R
-            head += (f"   {D}holding {h['qty']:.0f} @ {_px(h['cost'])} "
-                     f"{uc}{h['upl']:+,.0f}{X}")
         print(head + f"   {D}({r['src']}){X}")
 
         print(f"\n{D}{'':<5}{'action':<14}{'expected range':>22}{'band held':>11}"

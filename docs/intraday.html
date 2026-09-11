@@ -16,8 +16,16 @@
   button:disabled{opacity:.45}
   .dim{color:var(--dim)} .up{color:var(--up)} .dn{color:var(--dn)} .warn{color:var(--warn)}
   .big{font-weight:600} .sp{margin-top:14px}
-  table{width:100%;border-collapse:collapse;margin-top:6px}
-  td,th{padding:4px 0;text-align:right} td:first-child,th:first-child{text-align:left}
+  /* Monospace columns collide on a phone once an action word joins the row, and
+     zero horizontal padding let neighbouring cells touch. Fixed layout plus real
+     padding keeps the columns apart at any width; the table scrolls rather than
+     the page. */
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:auto}
+  td,th{padding:5px 10px 5px 0;text-align:right;white-space:nowrap}
+  td:first-child,th:first-child{text-align:left;padding-right:14px}
+  td:nth-child(2),th:nth-child(2){text-align:left;padding-right:16px}
+  td:last-child,th:last-child{padding-right:0}
   th{color:var(--dim);font-weight:400}
 </style></head><body>
 
@@ -69,14 +77,14 @@ function horizons(d){
   const verdict = a => a === 'SELL' ? 'dn' : a === 'BUY' ? 'up'
     : (a === 'NO TRADE' || a === 'STAND ASIDE' || a === 'HOLD, NO ADD') ? 'warn' : 'up';
   const rows = (d.rows || []).map(r => `<tr><td>${esc(r.label)}</td>`
-    + `<td class="${verdict(r.action)}" style="text-align:left">${esc(r.action || '—')}</td>`
+    + `<td class="${verdict(r.action)}">${esc(r.action || '—')}</td>`
     + `<td>${rng(r.lo, r.hi)}</td>`
     + `<td class="dim">±${num(r.half_pct,1)}%</td>`
     + `<td class="dim">${num(r.band_pct,0)}%</td>`
     + `<td class="${r.edge >= 0 ? 'up' : 'dn'}">${r.edge >= 0 ? '+' : ''}${num(r.edge,0)}pp</td></tr>`).join('');
   return card(head(d)
-    + `<table><tr><th></th><th style="text-align:left">action</th><th>expected range</th>`
-    + `<th></th><th>band</th><th>edge vs hold</th></tr>${rows}</table>`
+    + `<div class="scroll"><table><tr><th></th><th>action</th><th>expected range</th>`
+    + `<th></th><th>band</th><th>edge</th></tr>${rows}</table></div>`
     + `<div class="sp dim">regime ${esc(d.regime)} · exit below ${px(d.invalidation)}`
     + ` · ATR ${num(d.atr_pct,1)}% · bars to ${esc(d.last_bar)}</div>`
     + `<div class="dim">edge = hit-rate minus the share of windows the stock rose anyway.`
@@ -92,7 +100,7 @@ function setup(d){
       + ` · ${d.bars_today} bars in · ${esc(d.source||'')}</div>`);
   const k = d.side === 'LONG' ? 'up' : 'dn';
   return card(`<span class="big ${k}">${esc(d.side)}</span>`
-    + `<table>`
+    + `<div class="scroll"><table>`
     + `<tr><td class="dim">entry</td><td class="big">${px(d.entry)}</td></tr>`
     + `<tr><td class="dim">stop</td><td class="big dn">${px(d.stop)}</td>`
     + `<td class="dim">${px(d.risk_per_share)}/sh · ${num(d.risk_pct_of_price)}%</td></tr>`
@@ -100,7 +108,7 @@ function setup(d){
     + `<td class="dim">${num(d.r_multiple,1)}R</td></tr>`
     + `<tr><td class="dim">size</td><td>${d.qty} sh</td>`
     + `<td class="dim">risk $${Math.round(d.risk_dollars).toLocaleString()}</td></tr>`
-    + `</table>`
+    + `</table></div>`
     + `<div class="sp dim">VWAP ${px(d.vwap)} · opening 30m ${rng(d.orb_low, d.orb_high)}`
     + ` · session ${rng(d.session_low, d.session_high)} · ATR ${px(d.atr)}</div>`
     + `<div class="dim">${esc(d.symbol)} · ${esc(d.timespan)} · ${esc(d.session)}`
