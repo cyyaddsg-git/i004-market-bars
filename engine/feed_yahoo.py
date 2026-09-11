@@ -27,11 +27,50 @@ INTERVAL = {"M1": "1m", "M5": "5m", "M15": "15m", "M30": "30m", "M60": "60m"}
 RANGE = {"M1": "5d", "M5": "1mo", "M15": "1mo", "M30": "3mo", "M60": "3mo"}
 
 
+# Yahoo 429s an anonymous request hard -- measured 2026-09-11 from BOTH YY's home
+# address and Render's Singapore egress, so it is not one bad IP. What it actually
+# wants is a session: consent cookies from fc.yahoo.com, then a crumb. Build that
+# once per process and reuse it, with a short backoff for the genuine bursts.
+_OPENER = None
+
+
+def _opener():
+    global _OPENER
+    if _OPENER is None:
+        import http.cookiejar
+        cj = http.cookiejar.CookieJar()
+        _OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+        _OPENER.addheaders = list(UA.items())
+        for u in ("https://fc.yahoo.com/", "https://finance.yahoo.com/"):
+            try:
+                _OPENER.open(u, timeout=10).read(1)
+            except Exception:                                      # noqa: BLE001
+                pass                    # a refused warm-up is not fatal; the cookie
+                                        # may already have come from the other URL
+    return _OPENER
+
+
+def _get(u: str, timeout: int, tries: int = 4):
+    """One GET with backoff. 429 is the expected failure here, not an anomaly."""
+    import time
+    last = None
+    for i in range(tries):
+        try:
+            return _opener().open(u, timeout=timeout).read()
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code not in (429, 503):
+                raise
+            global _OPENER
+            _OPENER = None              # rebuild the session; the cookie may be stale
+            time.sleep(1.5 * (i + 1))
+    raise last
+
+
 def _chart(sym: str, interval: str, rng: str, timeout: int = 30) -> dict:
     u = (f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
          f"?interval={interval}&range={rng}&includePrePost=false")
-    d = json.load(urllib.request.urlopen(
-        urllib.request.Request(u, headers=UA), timeout=timeout))
+    d = json.loads(_get(u, timeout))
     res = (d.get("chart") or {}).get("result")
     if not res:
         err = ((d.get("chart") or {}).get("error") or {}).get("description")
