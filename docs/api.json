@@ -1,0 +1,5 @@
+{
+ "url": "https://i004-market-api.onrender.com",
+ "updated": "2026-09-11T14:05:57Z",
+ "_readme": "Where docs/intraday.html sends its requests. Same origin, so no CORS on this read. Change this file, not the page, when the endpoint moves."
+}

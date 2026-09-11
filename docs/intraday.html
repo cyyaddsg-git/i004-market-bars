@@ -28,9 +28,16 @@
 <script>
 // The published site is static, and no quote provider sends CORS headers, so the
 // browser cannot pull live bars itself (measured 2026-09-08). This calls the one
-// hosted hop, which runs engine/intraday.py and engine/horizons.py UNCHANGED --
-// there is deliberately no second copy of the rule in JavaScript to drift.
-const API = 'https://i004-market-api.onrender.com';
+// hop, which runs engine/intraday.py and engine/horizons.py UNCHANGED -- there is
+// deliberately no second copy of the rule in JavaScript to drift.
+//
+// The hop's address is NOT baked in, so the host can change without a code edit.
+// api.json sits in this same directory (same origin, so no CORS on that read) and
+// names the current endpoint.
+let API = null;
+const APIP = fetch('api.json', {cache:'no-store'})
+  .then(r => r.ok ? r.json() : Promise.reject(new Error('api.json missing')))
+  .then(d => { API = d.url; return d; });
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -96,6 +103,7 @@ function setup(d){
 }
 
 async function get(path){
+  if (!API) await APIP;
   const r = await fetch(`${API}${path}`, {cache:'no-store'});
   const j = await r.json().catch(() => ({error:`HTTP ${r.status}`}));
   if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
@@ -120,7 +128,11 @@ async function run(sym){
           : card(`<span class="dn">intraday unavailable</span><br><span class="dim">${esc(i.reason.message)}</span>`);
     $('#out').innerHTML = html;
   } catch (e) {
-    $('#out').innerHTML = card(`<span class="dn">failed</span><br><span class="dim">${esc(e.message)}</span>`);
+    // Say the engine is unreachable. A network error must never read as
+    // "this ticker has no data", and no cached card is shown, because a stale
+    // one reads as current -- which is what this page did for twelve days.
+    $('#out').innerHTML = card(`<span class="dn">the engine is not reachable</span>`
+      + `<br><span class="dim">${esc(e.message)}</span>`);
   }
   busy = false; $('#go').disabled = false;
 }
