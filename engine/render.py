@@ -202,9 +202,13 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
 
     # The link only makes sense on the public page: it is a sibling file there, and
     # the terminal/email surfaces have no browser to follow it.
-    ask = ('<br><br><a href="ask.html" style="color:%s;text-decoration:none;'
-           'border-bottom:1px dotted %s;">Any other ticker &rarr; 1D / 5D / 1M read</a>'
-           % (ACC, ACC))
+    # Points at the LIVE tab, not ask.html. ask.html is a nightly prebuild of 252
+    # names: it cannot answer a ticker outside that set and its numbers are last
+    # night's. intraday.html computes on request, any ticker, so the link now goes
+    # where the promise is actually kept.
+    ask = ('<br><br><a href="intraday.html" style="color:%s;text-decoration:none;'
+           'border-bottom:1px dotted %s;">Any ticker &rarr; live 1D / 5D / 1M '
+           '+ intraday setup</a>' % (ACC, ACC))
     note = ("" if private else
             ask + "<br><br>" + sp("Advice only. Positions and account figures are "
                                   "deliberately not published here.", DIM))
@@ -222,8 +226,19 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
 # card that silently falls back to stale numbers without saying so.
 LIVE_JS = """
 <script>
+// Pressing Reload used to re-fetch a page that only changes at 09:00 SGT -- and
+// 09:00 SGT is 21:00 ET, AFTER the US close, so before the open YY was reading
+// last night's post-close card. This asks the API to recompute the whole row.
+//
+// It rewrites the WHOLE block, never just the price: a live price beside a
+// stale "BUY @ 503.60" is worse than an honestly old card, because nothing on
+// screen says which half is current.
 (async () => {
   const stamp = document.querySelector('[data-stamp]');
+  const D='#8fa3b6', UP='#4ADE80', DN='#FF6B6B', FG='#F2F0E9', ACC='#7dd3fc';
+  const sp=(t,c,b)=>`<span style="${c?`color:${c};`:''}${b?'font-weight:600;':''}">${t}</span>`;
+  const money=v=>Number(v).toLocaleString('en-US',
+    {minimumFractionDigits:Math.abs(v)>=10?2:4, maximumFractionDigits:Math.abs(v)>=10?2:4});
   try {
     const cfg = await (await fetch('api.json', {cache:'no-store'})).json();
     const r = await fetch(cfg.url + '/card', {cache:'no-store'});
@@ -233,18 +248,30 @@ LIVE_JS = """
     document.querySelectorAll('[data-sym]').forEach(el => {
       const x = by[el.getAttribute('data-sym')];
       if (!x) return;
-      const up = x.change_pct >= 0;
-      el.querySelectorAll('[data-px]').forEach(n => {
-        n.textContent = x.price.toFixed(Math.abs(x.price) >= 10 ? 2 : 4)
-          + '  ' + (up ? '+' : '') + x.change_pct.toFixed(2) + '%';
-        n.style.color = up ? '#4ADE80' : '#FF6B6B';
-      });
+      const col = x.change_pct >= 0 ? UP : DN;
+      const head = sp(x.symbol, FG, true) + '&nbsp;&nbsp;'
+        + sp(money(x.price) + '  ' + (x.change_pct>=0?'+':'') + x.change_pct.toFixed(2) + '%', col, true);
+      const risk = (x.risk_pct !== null && x.risk_pct !== undefined)
+        ? sp(` \u00b7 risk ${x.risk_pct.toFixed(1)}%`, D) : '';
+      let line;
+      if (x.action === 'BUY')
+        line = sp('BUY', ACC, true) + ` @ ${money(x.price)} \u00b7 `
+             + sp(`out below ${money(x.invalidation)}`, DN) + risk;
+      else if (x.action === 'HOLD')
+        line = sp('HOLD', FG, true) + ' \u2014 ' + sp(`out below ${money(x.invalidation)}`, DN) + risk;
+      else if (x.action === 'SELL')
+        line = sp('SELL', DN, true) + ' \u2014 regime broke \u00b7 '
+             + sp(`re-entry above ${money(x.reentry)}`, D);
+      else
+        line = sp(String(x.action).replace(/_/g,' '), D, true);
+      const rng = sp(`today ${money(x.range_lo)} \u2013 ${money(x.range_hi)}`, D);
+      el.innerHTML = head + '<br>&nbsp;&nbsp;' + line + '<br>&nbsp;&nbsp;' + rng;
     });
-    if (stamp) stamp.textContent = stamp.textContent.split(' · ')[0]
-      + ' · recomputed ' + new Date().toLocaleTimeString('en-GB',
-        {timeZone:'Asia/Singapore', hour:'2-digit', minute:'2-digit'}) + ' SGT';
+    if (stamp) stamp.textContent = 'NASDAQ \u00b7 recomputed '
+      + new Date().toLocaleTimeString('en-GB',
+          {timeZone:'Asia/Singapore', hour:'2-digit', minute:'2-digit'}) + ' SGT \u00b7 live';
   } catch (e) {
-    if (stamp) stamp.textContent += '  — live refresh unavailable, showing the build above';
+    if (stamp) stamp.textContent += '  \u2014 live refresh unavailable, this is the build above';
   }
 })();
 </script>"""

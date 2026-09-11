@@ -26,6 +26,12 @@
   td:first-child,th:first-child{text-align:left;padding-right:14px}
   td:nth-child(2),th:nth-child(2){text-align:left;padding-right:16px}
   td:last-child,th:last-child{padding-right:0}
+  /* The setup card is a label/value/note grid, not a data table: pin the label
+     column so entry, stop, target and size line up under each other. */
+  table.setup{table-layout:fixed}
+  table.setup td:first-child{width:5.5em}
+  table.setup td:nth-child(2){text-align:left;width:7em}
+  table.setup td:last-child{text-align:right}
   th{color:var(--dim);font-weight:400}
 </style></head><body>
 
@@ -99,15 +105,19 @@ function setup(d){
       + `<div class="sp dim">${esc(d.symbol)} · ${esc(d.timespan)} · session ${esc(d.session)}`
       + ` · ${d.bars_today} bars in · ${esc(d.source||'')}</div>`);
   const k = d.side === 'LONG' ? 'up' : 'dn';
+  // Every row carries all three cells. Rows with only two left the third column
+  // unconstrained, so the notes drifted to the far edge while the values sat
+  // mid-row -- that is the misalignment, not the font.
+  const row = (label, value, cls, note) =>
+    `<tr><td class="dim">${label}</td>`
+    + `<td class="big ${cls || ''}">${value}</td>`
+    + `<td class="dim">${note || ''}</td></tr>`;
   return card(`<span class="big ${k}">${esc(d.side)}</span>`
-    + `<div class="scroll"><table>`
-    + `<tr><td class="dim">entry</td><td class="big">${px(d.entry)}</td></tr>`
-    + `<tr><td class="dim">stop</td><td class="big dn">${px(d.stop)}</td>`
-    + `<td class="dim">${px(d.risk_per_share)}/sh · ${num(d.risk_pct_of_price)}%</td></tr>`
-    + `<tr><td class="dim">target</td><td class="big up">${px(d.target)}</td>`
-    + `<td class="dim">${num(d.r_multiple,1)}R</td></tr>`
-    + `<tr><td class="dim">size</td><td>${d.qty} sh</td>`
-    + `<td class="dim">risk $${Math.round(d.risk_dollars).toLocaleString()}</td></tr>`
+    + `<div class="scroll"><table class="setup">`
+    + row('entry', px(d.entry), '', '')
+    + row('stop', px(d.stop), 'dn', `${px(d.risk_per_share)}/sh · ${num(d.risk_pct_of_price)}%`)
+    + row('target', px(d.target), 'up', `${num(d.r_multiple,1)}R`)
+    + row('size', `${d.qty} sh`, '', `risk $${Math.round(d.risk_dollars).toLocaleString()}`)
     + `</table></div>`
     + `<div class="sp dim">VWAP ${px(d.vwap)} · opening 30m ${rng(d.orb_low, d.orb_high)}`
     + ` · session ${rng(d.session_low, d.session_high)} · ATR ${px(d.atr)}</div>`
