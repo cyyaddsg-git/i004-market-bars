@@ -31,6 +31,12 @@ import feed_yahoo                                                  # noqa: E402
 import horizons                                                    # noqa: E402
 import intraday                                                    # noqa: E402
 
+# The host runs WITHOUT the Webull SDK and without any key -- see render.yaml. The
+# per-source loops below already treat a raising source as "cannot serve", but a
+# source that can never work should not be tried at all: it would put a misleading
+# "webull: ModuleNotFoundError" at the head of every error detail.
+HAS_WEBULL = bool(os.environ.get("WEBULL_APP_KEY"))
+
 app = Flask(__name__)
 
 # The Pages origin is the only caller. Listed explicitly rather than "*", so a
@@ -57,7 +63,7 @@ def _sym() -> str:
 
 @app.get("/healthz")
 def healthz():
-    return jsonify(ok=True, webull=bool(os.environ.get("WEBULL_APP_KEY")))
+    return jsonify(ok=True, sources=["webull", "yahoo"] if HAS_WEBULL else ["yahoo"])
 
 
 @app.get("/intraday")
@@ -71,8 +77,9 @@ def r_intraday():
     except ValueError as e:
         return jsonify(error=str(e)), 400
     errs = []
-    for name, get in (("webull", lambda: intraday.bars(sym, tf, 200)),
-                      ("yahoo", lambda: feed_yahoo.intraday_bars(sym, tf))):
+    sources = ([("webull", lambda: intraday.bars(sym, tf, 200))] if HAS_WEBULL else []) \
+        + [("yahoo", lambda: feed_yahoo.intraday_bars(sym, tf))]
+    for name, get in sources:
         try:
             bs = get()
             if not bs:
@@ -96,8 +103,9 @@ def _live_price(sym: str) -> tuple[float | None, str]:
     latest intraday bar's close IS the live price -- so take it from there rather
     than let the card quote a stale close and call it live.
     """
-    for name, get in (("webull", lambda: intraday.bars(sym, "M5", 2)),
-                      ("yahoo", lambda: feed_yahoo.intraday_bars(sym, "M5"))):
+    sources = ([("webull", lambda: intraday.bars(sym, "M5", 2))] if HAS_WEBULL else []) \
+        + [("yahoo", lambda: feed_yahoo.intraday_bars(sym, "M5"))]
+    for name, get in sources:
         try:
             bs = get()
             if bs:
@@ -114,8 +122,9 @@ def r_horizons():
     except ValueError as e:
         return jsonify(error=str(e)), 400
     errs = []
-    for name, get in (("webull", lambda: None),                    # feed default
-                      ("yahoo", lambda: feed_yahoo.daily_bars(sym))):
+    sources = ([("webull", lambda: None)] if HAS_WEBULL else []) \
+        + [("yahoo", lambda: feed_yahoo.daily_bars(sym))]
+    for name, get in sources:
         try:
             out = horizons.evaluate(sym, bars=get(), account=False, live=False)
             out["source"] = name
