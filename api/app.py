@@ -41,12 +41,22 @@ HAS_WEBULL = bool(os.environ.get("WEBULL_APP_KEY"))
 # from. Materialise it from the env var into a private temp dir at startup, the
 # same shape CI uses (it writes $RUNNER_TEMP/wb/token.txt). Optional: if market
 # data works on key+secret alone, WEBULL_TOKEN simply stays unset.
+TOKEN_LINES = 0
+
 if HAS_WEBULL and os.environ.get("WEBULL_TOKEN") and not os.environ.get("WEBULL_TOKEN_DIR"):
     import tempfile
+    # token.txt is THREE lines -- token, expiry, status -- and the SDK parses it
+    # positionally. A dashboard textarea can hand back \r\n, a single flattened
+    # line, or stray blanks; any of those make the SDK read the token as PENDING
+    # and demand 2FA, which is indistinguishable from a bad credential. So
+    # normalise on whatever separator survived rather than trust the paste.
+    _raw = os.environ["WEBULL_TOKEN"].replace("\r\n", "\n").replace("\r", "\n")
+    _parts = [x for x in _raw.replace(",", "\n").split() if x]
+    TOKEN_LINES = len(_parts)
     _td = os.path.join(tempfile.gettempdir(), "wb")
     os.makedirs(_td, mode=0o700, exist_ok=True)
     with open(os.path.join(_td, "token.txt"), "w") as _f:
-        _f.write(os.environ["WEBULL_TOKEN"])
+        _f.write("\n".join(_parts) + "\n")
     os.environ["WEBULL_TOKEN_DIR"] = _td
 
 app = Flask(__name__)
@@ -75,7 +85,8 @@ def _sym() -> str:
 
 @app.get("/healthz")
 def healthz():
-    return jsonify(ok=True, sources=["webull", "yahoo"] if HAS_WEBULL else ["yahoo"])
+    return jsonify(ok=True, sources=["webull", "yahoo"] if HAS_WEBULL else ["yahoo"],
+                   token_fields=TOKEN_LINES)   # count only, never the value
 
 
 @app.get("/intraday")
