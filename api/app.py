@@ -43,6 +43,20 @@ HAS_WEBULL = bool(os.environ.get("WEBULL_APP_KEY"))
 # data works on key+secret alone, WEBULL_TOKEN simply stays unset.
 TOKEN_LINES = 0
 
+# A Render Secret File is the sturdier path: token.txt is three positional lines and
+# a dashboard textarea mangles or silently drops a multi-line paste (measured
+# 2026-09-12 -- the variable did not save at all). A file arrives byte-exact.
+if HAS_WEBULL and not os.environ.get("WEBULL_TOKEN"):
+    for _p in ("/etc/secrets/token.txt", os.path.join(os.getcwd(), "token.txt")):
+        try:
+            with open(_p) as _f:
+                _v = _f.read().strip()
+            if _v:
+                os.environ["WEBULL_TOKEN"] = _v
+                break
+        except OSError:
+            continue
+
 if HAS_WEBULL and os.environ.get("WEBULL_TOKEN") and not os.environ.get("WEBULL_TOKEN_DIR"):
     import tempfile
     # token.txt is THREE lines -- token, expiry, status -- and the SDK parses it
