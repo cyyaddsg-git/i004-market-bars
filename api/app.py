@@ -37,6 +37,18 @@ import intraday                                                    # noqa: E402
 # "webull: ModuleNotFoundError" at the head of every error detail.
 HAS_WEBULL = bool(os.environ.get("WEBULL_APP_KEY"))
 
+# The SDK reads the 2FA token from a FILE, and a host has no checkout to read it
+# from. Materialise it from the env var into a private temp dir at startup, the
+# same shape CI uses (it writes $RUNNER_TEMP/wb/token.txt). Optional: if market
+# data works on key+secret alone, WEBULL_TOKEN simply stays unset.
+if HAS_WEBULL and os.environ.get("WEBULL_TOKEN") and not os.environ.get("WEBULL_TOKEN_DIR"):
+    import tempfile
+    _td = os.path.join(tempfile.gettempdir(), "wb")
+    os.makedirs(_td, mode=0o700, exist_ok=True)
+    with open(os.path.join(_td, "token.txt"), "w") as _f:
+        _f.write(os.environ["WEBULL_TOKEN"])
+    os.environ["WEBULL_TOKEN_DIR"] = _td
+
 app = Flask(__name__)
 
 # The Pages origin is the only caller. Listed explicitly rather than "*", so a

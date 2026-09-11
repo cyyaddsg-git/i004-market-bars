@@ -15,13 +15,24 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.6"
-# NO WEBULL KEYS HERE, AND NONE IN THE DASHBOARD EITHER.
-#
-# The API tries Webull first and falls through to Yahoo, so with no key present it
-# is simply Yahoo-only -- the same source build_horizons.py has used from CI every
-# night. That removes the broker credential from a third-party host entirely: there
-# is nothing to leak, nothing to rotate, and no account scope to get wrong.
-#
-# Yahoo rate-limits by IP; it 429s from YY's home address and answers from CI. If it
-# ever 429s from Render, the fix is a key in the dashboard as a Secret -- not in this
-# file, which is public.
+      # NOT `account`. The host reads prices; it must never be able to read YY's
+      # positions or balance, and nothing in api/app.py calls feed.positions().
+      - key: WEBULL_TOOLSETS
+        value: market-data,instrument
+      - key: WEBULL_REGION_ID
+        value: sg
+      - key: WEBULL_ENVIRONMENT
+        value: prod
+      # Secrets. Entered in the Render dashboard, NEVER in this file -- the repo is
+      # public. Yahoo was tried first and is not viable: it returns 429 to an
+      # anonymous request from YY's home address AND from Render's Singapore egress,
+      # cookie session and backoff included (measured 2026-09-11). Stooq now serves a
+      # proof-of-work bot challenge. Webull is the only source that answers.
+      - key: WEBULL_APP_KEY
+        sync: false
+      - key: WEBULL_APP_SECRET
+        sync: false
+      # The SDK wants the 2FA token as a FILE; app.py writes it from this value at
+      # startup. Optional -- if market-data works on key+secret alone, leave it unset.
+      - key: WEBULL_TOKEN
+        sync: false
