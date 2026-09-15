@@ -1,0 +1,30 @@
+# Keep the market API awake during US market hours.
+#
+# Render's free tier sleeps after ~15 idle minutes and the next request takes 50s+,
+# which reads as "the tab is broken" (YY, 2026-09-15: "intraday 1d/5d/1m stop
+# working" -- the service was fine, it was asleep). A 10-minute ping during the
+# session costs nothing and removes the cold start when YY actually looks.
+#
+# GitHub's cron drifts by hours on this repo, which does NOT matter here: this job
+# only needs to fire OFTEN, never at a precise minute. That is why a schedule is
+# acceptable in this one workflow and nowhere else in the project.
+name: warm
+on:
+  schedule:
+    - cron: "*/10 13-21 * * 1-5"     # 13:00-21:00 UTC = 09:00-17:00 ET, weekdays
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: wake the API
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
+                   https://i004-market-api.onrender.com/healthz || true)
+            echo "attempt $i -> $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "API did not answer 200 after 3 attempts"
+          exit 1

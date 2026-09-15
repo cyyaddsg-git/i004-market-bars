@@ -65,8 +65,13 @@ def action(r: dict, row: dict) -> tuple[str, str]:
     direction it has been measured not to know. It says HOLD instead -- which for
     someone flat simply means do nothing.
     """
+    # SELL is a REGIME statement and must not outrank the measured edge. ORCL
+    # printed SELL at 1D/5D while its conditional edge was +1.5pp and +3.8pp --
+    # the rule telling YY to sell a name it had just measured itself as right
+    # about. An edge at or below zero means the direction call is worthless in
+    # BOTH directions, so it cannot justify a SELL either: it says HOLD.
     if r["regime"] == "OUT":
-        return ("SELL", R)
+        return ("SELL", R) if (row["edge"] is not None and row["edge"] > 0) else ("HOLD", Y)
     if r["regime"] == "WATCH":
         return ("HOLD", Y)
     if row["edge"] is not None and row["edge"] <= 0:
@@ -117,6 +122,21 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
 
     for label, h in HORIZONS:
         hit = n = up = 0                          # overlapping windows
+        # CONDITIONAL edge: P(up | IN) - P(up).
+        #
+        # The old form was (hit - up)/n with hit counting BOTH (IN and up) and
+        # (OUT and down). Expand it and the (IN and up) term cancels exactly
+        # against the same term inside `up`, leaving (OUT-and-down minus
+        # OUT-and-up)/n -- a number carrying ZERO information about IN bars,
+        # which are the only bars a BUY depends on. Measured 2026-09-12: a model
+        # right on all 700 IN calls scored -2.6pp and was refused; one wrong on
+        # every IN call scored +20.0pp and was granted; corr(baseline, edge) was
+        # -0.81 across 257 names, so the gate systematically bought decliners and
+        # blocked winners. It printed BUY on ORBS at every horizon.
+        #
+        # The question a BUY actually asks is: given the rule says IN, does the
+        # stock rise MORE OFTEN than it rises anyway? That is this.
+        n_in = up_in = 0
         for i, st in enumerate(states):
             if st == "WATCH" or i + h >= len(closes):
                 continue
@@ -124,7 +144,11 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
             u = closes[i + h] > closes[i]
             up += u
             hit += (st == "IN") == u
+            if st == "IN":
+                n_in += 1
+                up_in += u
         ihit = inn = iup = 0                      # independent (non-overlapping)
+        i_nin = i_upin = 0
         for i in range(0, len(closes) - h, h):
             if states[i] == "WATCH":
                 continue
@@ -132,6 +156,9 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
             u = closes[i + h] > closes[i]
             iup += u
             ihit += (states[i] == "IN") == u
+            if states[i] == "IN":
+                i_nin += 1
+                i_upin += u
         k = BAND * math.sqrt(h)
         inside = bn = 0
         for i in range(len(bars) - h):
@@ -145,9 +172,15 @@ def evaluate(sym: str, count: int = 800, bars: list[dict] | None = None,
             "lo": price - k * a, "hi": price + k * a,
             "half_pct": k * a / price * 100,
             "band_pct": inside / bn * 100 if bn else None,
-            "hit": hit / n * 100 if n else None, "base": up / n * 100 if n else None,
-            "edge": (hit - up) / n * 100 if n else None, "n": n,
-            "iedge": (ihit - iup) / inn * 100 if inn else None, "in": inn,
+            "hit": up_in / n_in * 100 if n_in else None,
+            "base": up / n * 100 if n else None,
+            "edge": (up_in / n_in - up / n) * 100 if (n_in and n) else None,
+            "n": n, "n_in": n_in,
+            "iedge": (i_upin / i_nin - iup / inn) * 100 if (i_nin and inn) else None,
+            "in": inn,
+            "agree": (hit - up) / n * 100 if n else None,   # the OLD number, kept
+                                                            # for comparison only
+                                                            # -- never gates anything
             "moved": (closes[-1] / closes[-1 - h] - 1) * 100 if len(closes) > h else None,
         })
 

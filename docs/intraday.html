@@ -69,6 +69,17 @@ const rng = (a, b) => (a == null || b == null) ? '—'
 
 function card(h){ return `<div class="card">${h}</div>`; }
 
+// Name the bar the numbers came from, and say plainly when it is not today's.
+// A live price beside two-day-old daily bars is the failure mode this project
+// has hit twice; "bars to 2026-09-10" alone did not read as a warning.
+function staleness(lastBar){
+  if (!lastBar) return 'bar date unknown';
+  const d = new Date(lastBar + 'T00:00:00Z');
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const txt = `bars to ${esc(lastBar)}`;
+  return days >= 2 ? `<span class="warn">${txt} — ${days} days old</span>` : txt;
+}
+
 function head(d){
   const c = d.change_pct, k = c >= 0 ? 'up' : 'dn';
   const stale = d.src === 'close';
@@ -80,8 +91,11 @@ function head(d){
 }
 
 function horizons(d){
-  const verdict = a => a === 'SELL' ? 'dn' : a === 'BUY' ? 'up'
-    : (a === 'NO TRADE' || a === 'STAND ASIDE' || a === 'HOLD, NO ADD') ? 'warn' : 'up';
+  // BUY is the ONLY green. HOLD used to hit the fallback and render green,
+  // indistinguishable from a buy signal -- so the edge gate's only safety output
+  // looked like the thing it was refusing. Anything unknown is dim, never green.
+  const verdict = a => a === 'BUY' ? 'up' : a === 'SELL' ? 'dn'
+    : a === 'HOLD' ? 'warn' : 'dim';
   const rows = (d.rows || []).map(r => `<tr><td>${esc(r.label)}</td>`
     + `<td class="${verdict(r.action)}">${esc(r.action || '—')}</td>`
     + `<td>${rng(r.lo, r.hi)}</td>`
@@ -92,7 +106,7 @@ function horizons(d){
     + `<div class="scroll"><table><tr><th></th><th>action</th><th>expected range</th>`
     + `<th></th><th>band</th><th>edge</th></tr>${rows}</table></div>`
     + `<div class="sp dim">regime ${esc(d.regime)} · exit below ${px(d.invalidation)}`
-    + ` · ATR ${num(d.atr_pct,1)}% · bars to ${esc(d.last_bar)}</div>`
+    + ` · ATR ${num(d.atr_pct,1)}% · ${staleness(d.last_bar)}</div>`
     + `<div class="dim">edge = hit-rate minus the share of windows the stock rose anyway.`
     + ` 0 or below means the direction call adds nothing — which is why an edge at or below`
     + ` zero never says BUY or ADD. It can still say HOLD: the exit level is a risk`
