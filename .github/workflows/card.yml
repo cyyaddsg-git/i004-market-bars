@@ -56,9 +56,9 @@ jobs:
           WEBULL_ENVIRONMENT: prod
           WEBULL_TOOLSETS:   market-data,instrument,account
           WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
-          SMTP_USER:         genalphai.production@gmail.com
-          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
-          REPORT_TO:         ${{ secrets.REPORT_TO }}
+          # Email removed 2026-09-16 (YY). The card still builds, publishes and
+          # logs its prediction; SMTP_* and REPORT_TO are no longer passed, so a
+          # re-enable is a deliberate edit here and not an accident of the env.
           ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
         run: |
           python engine/daily.py --predict ${{ inputs.dry_run && '--dry-run' || '' }}

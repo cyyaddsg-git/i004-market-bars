@@ -83,6 +83,15 @@ def last_closed_session(now_et: datetime.datetime) -> datetime.date:
 
 
 def send_email(html: str, subject: str) -> str:
+    """DISABLED (YY, 2026-09-16: "remove both").
+
+    The card still builds, publishes and logs its prediction -- only the mail is
+    gone. Kept as a no-op rather than deleted so the call site stays honest about
+    what it is not doing; set I004_EMAIL=1 to turn it back on without a code edit.
+    """
+    if os.environ.get("I004_EMAIL") != "1":
+        return "disabled — email removed 2026-09-16; set I004_EMAIL=1 to re-enable"
+
     user = os.environ.get("SMTP_USER", "genalphai.production@gmail.com")
     pw = os.environ.get("SMTP_APP_PASSWORD")
     to = os.environ.get("REPORT_TO")
