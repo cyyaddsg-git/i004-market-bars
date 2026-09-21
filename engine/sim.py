@@ -351,7 +351,7 @@ def page(m: dict) -> str:
 
     return ('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>i004 &middot; paper book</title><link rel="icon" href="data:,"></head>'
+            '<title>i004 &middot; Sim</title><link rel="icon" href="data:,"></head>'
             '<body style="margin:0;padding:16px;background:#080d0a;">'
             '<div style="background:%s;color:%s;padding:18px 20px;border-radius:10px;'
             'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;'
