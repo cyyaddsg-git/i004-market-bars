@@ -162,6 +162,12 @@ def do_predict(now_et: datetime.datetime, write: bool = True,
               f"equity {book['equity']:,.2f} ({book['pl_pct']:+.2f}%)")
         with open(SIM_PAGE, "w") as f:
             f.write(sim.page(book))
+        # The public page may only name universe + paper-book tickers. A real
+        # holding outside that set would disclose a position by its mere presence.
+        leak = {r["symbol"] for r in rows} - set(card.tradeable(cfg))
+        if leak:
+            print(f"refusing to publish: {sorted(leak)} are not universe or paper book")
+            sys.exit(1)
         os.makedirs(os.path.dirname(PAGE), exist_ok=True)
         with open(PAGE, "w") as f:
             f.write(render.page(rows, acc))
