@@ -40,6 +40,9 @@ R_MULT = 2.0          # target distance, in units of risk
 CAPITAL = 100_000.0   # same book as engine/sim.py
 RISK_PCT = 0.01
 MAX_WEIGHT = 0.20
+TICK_RT = 0.02        # one-cent tick each way: the smallest possible round trip
+MAX_TICK_COST = 0.10  # suitability gate (spec §7): that round trip may cost at most
+                      # a tenth of the rule's own stop distance
 
 SPAN_MIN = {"M1": 1, "M5": 5, "M15": 15, "M30": 30, "M60": 60}
 
@@ -124,6 +127,20 @@ def read(symbol: str, timespan: str = "M5", bs: list[dict] | None = None) -> dic
                         f"{len(orb)}/{n_orb} bars in, {need} to go"
                         if len(orb) < n_orb else
                         "not enough of the session has traded to have a VWAP and an ATR"))
+        return out
+
+    # Suitability gate (spec §7). Above $1.00 the quote increment is one cent and
+    # indivisible, so on a name whose stop distance is a few cents the spread alone
+    # is the trade: ORBS replayed at -16.42R with 0 of 72 parameter sets positive,
+    # one tick = 134% of its stop. The gate is the ratio, not a price floor, because
+    # the stop follows the day's ATR. Refused names say so -- never a setup.
+    tick_cost = TICK_RT / (STOP_PAD * a)
+    out["tick_cost"] = round(tick_cost, 3)
+    if tick_cost > MAX_TICK_COST:
+        out.update(side="NO SETUP", refused=True,
+                   why=(f"REFUSED — a 2-cent round trip is {tick_cost:.0%} of the "
+                        f"{STOP_PAD * a:.3f} stop distance (limit {MAX_TICK_COST:.0%}). "
+                        f"The tick is too large for this rule to have an edge here."))
         return out
 
     # Trigger and invalidation are DIFFERENT levels, so the state has to be
