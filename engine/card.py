@@ -31,6 +31,13 @@ def build(symbols: list[str], cfg: dict) -> tuple[list[dict], dict, dict]:
     rows = [analyse(s, feed.bars(s, count=90), cfg,
                     live_price=snaps.get(s, {}).get("price"), held=held.get(s))
             for s in symbols]
+    # analyse() measures change against bars[-2], which is right once today's bar
+    # exists and wrong intraday, when the last bar is YESTERDAY. The snapshot knows
+    # which close the day's move is from, so it wins whenever it answered.
+    for r in rows:
+        snap = snaps.get(r["symbol"])
+        if snap and "change_pct" in r:
+            r["change_pct"] = snap["change_pct"]
     acct = feed.equity_usd()
     if acct:
         dep = os.environ.get("ACCOUNT_DEPOSITED")
@@ -40,8 +47,14 @@ def build(symbols: list[str], cfg: dict) -> tuple[list[dict], dict, dict]:
     return rows, acct, held
 
 
-def tradeable(cfg) -> list[str]:
+def tradeable(cfg, real: bool = False) -> list[str]:
     """The universe, PLUS anything the paper book still holds.
+
+    real=True also adds YY's REAL Webull holdings. PRIVATE surfaces only (the
+    terminal): until 2026-10-01 the terminal card showed 4 of YY's 14 real
+    positions, because only the paper book's names were added, so 10 held names
+    never got a SELL or an exit level. The public page must never take real=True:
+    a ticker appearing there would itself disclose a holding.
 
     A name that leaves the universe must keep getting a card until the book is out of it.
     Dropping it the day the watchlist changes would strand the position: no card, so no
@@ -55,12 +68,14 @@ def tradeable(cfg) -> list[str]:
         held = [t for t, p in sim.replay()["positions"].items() if p["qty"] > 0]
     except Exception:
         held = []
+    if real:
+        held += [t for t in feed.positions() if t not in held]
     return syms + [t for t in held if t not in syms]
 
 
 def main() -> None:
     cfg = load("config.json")
-    symbols = sys.argv[1:] or tradeable(cfg)
+    symbols = sys.argv[1:] or tradeable(cfg, real=True)     # terminal = private
     rows, acct, _ = build(symbols, cfg)
     print(render.as_text(rows, load("accuracy.json"), acct))
 
