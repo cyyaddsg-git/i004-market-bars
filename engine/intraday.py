@@ -132,15 +132,29 @@ def read(symbol: str, timespan: str = "M5", bs: list[dict] | None = None) -> dic
     # Suitability gate (spec §7). Above $1.00 the quote increment is one cent and
     # indivisible, so on a name whose stop distance is a few cents the spread alone
     # is the trade: ORBS replayed at -16.42R with 0 of 72 parameter sets positive,
-    # one tick = 134% of its stop. The gate is the ratio, not a price floor, because
-    # the stop follows the day's ATR. Refused names say so -- never a setup.
-    tick_cost = TICK_RT / (STOP_PAD * a)
-    out["tick_cost"] = round(tick_cost, 3)
-    if tick_cost > MAX_TICK_COST:
-        out.update(side="NO SETUP", refused=True,
-                   why=(f"REFUSED — a 2-cent round trip is {tick_cost:.0%} of the "
-                        f"{STOP_PAD * a:.3f} stop distance (limit {MAX_TICK_COST:.0%}). "
-                        f"The tick is too large for this rule to have an edge here."))
+    # one tick = 134% of its stop. A 2-cent round trip may cost at most a tenth of
+    # the risk the rule actually takes.
+    #
+    # The risk is measured, not proxied. The first version divided by STOP_PAD x ATR
+    # (the pad alone) as the spec's formula said -- that refused INTC, ORCL and SPCX
+    # at $118-$152 and passed NVDA at 9.6%, contradicting the spec's own replay, where
+    # a tick was 0.6-1.7% of the stop on NVDA/TSLA/PLTR. Before a setup exists the
+    # risk scale is the opening-range width (entry sits at one edge, the stop beyond
+    # the other level); once it exists, the gate is re-checked on entry-to-stop.
+    def refuse(scale: float, what: str) -> dict:
+        cost = TICK_RT / scale if scale > 0 else float("inf")
+        out["tick_cost"] = round(cost, 3)
+        if cost <= MAX_TICK_COST:
+            return {}
+        tail = ("The tick is too large for this rule on this name." if what.startswith("opening")
+                else "This setup's stop is too tight to trade; wait for a wider one.")
+        return dict(side="NO SETUP", refused=True,
+                    why=(f"REFUSED — a 2-cent round trip is {cost:.0%} of the {what} "
+                         f"{scale:.2f} (limit {MAX_TICK_COST:.0%}). {tail}"))
+
+    r = refuse(orh - orl, "opening-range width")
+    if r:
+        out.update(r)
         return out
 
     # Trigger and invalidation are DIFFERENT levels, so the state has to be
@@ -188,6 +202,10 @@ def read(symbol: str, timespan: str = "M5", bs: list[dict] | None = None) -> dic
     risk_ps = round(abs(entry - stop), 2)
     if risk_ps <= 0:
         out.update(side="NO SETUP", why="stop computed at or through the entry")
+        return out
+    r = refuse(risk_ps, "stop distance")
+    if r:
+        out.update(r)
         return out
 
     target = round(entry + R_MULT * risk_ps if side == "LONG"
