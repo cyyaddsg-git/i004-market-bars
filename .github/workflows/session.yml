@@ -1,0 +1,58 @@
+name: in-session card
+
+# NO GitHub `schedule:` HERE -- same reason as card.yml: GitHub's cron drifts by hours
+# on this repo. Started by the Claude cloud routine "i004 in-session card — 22:05 SGT",
+# i.e. 14:05 UTC, 35 minutes after the US open, once the 30-minute opening range exists.
+# (US daylight time. When ET falls back on 2026-11-01 the open is 22:30 SGT and the
+# routine moves to 23:05 SGT / 15:05 UTC.)
+#
+# Writes docs/session.html only. Logs no prediction and lodges no paper order: the
+# measured record is the 09:00 SGT card alone.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: session-card
+  cancel-in-progress: false
+
+jobs:
+  session:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      # PINNED -- see card.yml. SDK 3.0.0 returns 404 on the bars route.
+      - run: pip install --quiet "webull-openapi-mcp==1.2.2" "webull-openapi-python-sdk==2.0.17"
+      - name: restore Webull token
+        run: |
+          mkdir -p "$RUNNER_TEMP/wb"
+          printf '%s' "${{ secrets.WEBULL_TOKEN }}" > "$RUNNER_TEMP/wb/token.txt"
+      - name: build the in-session page
+        env:
+          WEBULL_APP_KEY:    ${{ secrets.WEBULL_APP_KEY }}
+          WEBULL_APP_SECRET: ${{ secrets.WEBULL_APP_SECRET }}
+          WEBULL_REGION_ID:  sg
+          WEBULL_ENVIRONMENT: prod
+          WEBULL_TOOLSETS:   market-data,instrument,account
+          WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
+        run: python engine/session.py --html docs/session.html
+      - name: refuse to publish account data
+        run: |
+          if grep -qiE 'equity|holding|deposited|kill switch|buying power' docs/session.html; then
+            echo "::error::account-shaped text found in the public page — not publishing"
+            exit 1
+          fi
+      - name: commit the page
+        run: |
+          git config user.name  "i004-bot"
+          git config user.email "i004-bot@users.noreply.github.com"
+          git add docs/session.html
+          git diff --staged --quiet || git commit -m "session: $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash -q
+          git push

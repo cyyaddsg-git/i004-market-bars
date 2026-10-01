@@ -206,7 +206,10 @@ def as_html(rows: list[dict], acc: dict, account: dict | None = None,
     # names: it cannot answer a ticker outside that set and its numbers are last
     # night's. intraday.html computes on request, any ticker, so the link now goes
     # where the promise is actually kept.
-    ask = ('<br><br><a href="intraday.html" style="color:%s;text-decoration:none;'
+    ask = ('<br><br><a href="session.html" style="color:%s;text-decoration:none;'
+           'border-bottom:1px dotted %s;">In session &rarr; today\'s entry for each name '
+           '(22:05 SGT)</a>' % (ACC, ACC)
+           + '<br><a href="intraday.html" style="color:%s;text-decoration:none;'
            'border-bottom:1px dotted %s;">Any ticker &rarr; live 1D / 5D / 1M '
            '+ intraday setup</a>' % (ACC, ACC))
     note = ("" if private else
