@@ -322,6 +322,49 @@ def _sp(text: str, colour: str, bold: bool = False) -> str:
     return '<span style="color:%s%s;">%s</span>' % (colour, weight, text)
 
 
+def _history() -> str:
+    """Every order ever lodged, newest first, each fill beside the real open it took.
+
+    YY, 2026-10-01: without an order history the book "feels mocked up". Each fill is
+    printed next to the opening price that bars.csv records for that session, so any
+    row can be checked against a chart. A fill is never repriced (spec §3.3): when the
+    bar vendor later revises an open, both numbers are shown rather than either one
+    silently changing.
+    """
+    bars = {(t, b["date"]): float(b["open"]) for t, bs in _bars().items() for b in bs}
+    th = 'style="text-align:%s;padding:3px 8px;color:%s;font-weight:400;white-space:nowrap"'
+    td = 'style="text-align:%s;padding:3px 8px;white-space:nowrap"'
+    head = "".join("<th %s>%s</th>" % (th % (a, DIM), h) for h, a in
+                   (("fill date", "left"), ("", "left"), ("side", "left"), ("qty", "right"),
+                    ("fill", "right"), ("day's open", "right"), ("check", "left")))
+    rows = []
+    for r in reversed(_orders()):
+        side_c = GRN if r["side"] == "BUY" else RED
+        if r["status"] == "FILLED":
+            fill = float(r["fill_price"])
+            opn = bars.get((r["ticker"], r["fill_date"]))
+            if opn is None:
+                chk = _sp("no bar on file", DIM)
+            elif abs(opn - fill) < 0.005:
+                chk = _sp("= open", GRN)
+            else:
+                chk = _sp("open revised by vendor after fill", GLD)
+            cells = (r["fill_date"], _sp(r["ticker"], FG, True), _sp(r["side"], side_c),
+                     r["qty"], "%.2f" % fill, "%.2f" % opn if opn else "—", chk)
+        else:
+            cells = (_sp("pending", GLD), _sp(r["ticker"], FG, True), _sp(r["side"], side_c),
+                     r["qty"], "—", "—", _sp("fills at the next open", DIM))
+        aligns = ("left", "left", "left", "right", "right", "right", "left")
+        rows.append("<tr>" + "".join("<td %s>%s</td>" % (td % a, c)
+                                     for a, c in zip(aligns, cells)) + "</tr>")
+        if r.get("note"):
+            rows.append('<tr><td colspan="7" style="padding:0 8px 6px;font-size:11px;'
+                        'color:%s;white-space:normal">%s</td></tr>' % (DIM, r["note"]))
+    return ('<div style="overflow-x:auto;margin-top:6px"><table style="border-collapse:'
+            'collapse;font-size:12px;width:100%%"><tr>%s</tr>%s</table></div>'
+            % (head, "".join(rows)))
+
+
 def page(m: dict) -> str:
     col = GRN if m["pl"] >= 0 else RED
 
@@ -356,8 +399,10 @@ def page(m: dict) -> str:
             '<div style="background:%s;color:%s;padding:18px 20px;border-radius:10px;'
             'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;'
             'line-height:1.65;max-width:640px;">'
-            '%s<br><br>%s<br>%s<br><br>%s<br><br>%s</div></body></html>'
-            % (BG, FG, head, pl, sub, body, foot))
+            '%s<br><br>%s<br>%s<br><br>%s<br><br>%s<br><br>%s%s</div></body></html>'
+            % (BG, FG, head, pl, sub, body, foot,
+               _sp("ORDER HISTORY &middot; every fill is the real opening price of "
+                   "that session", FG, True), _history()))
 
 
 def main() -> None:
