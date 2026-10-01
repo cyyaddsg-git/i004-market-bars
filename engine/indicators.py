@@ -78,6 +78,21 @@ def state_series(bars: list[dict], atr: list, sma: list) -> list[str]:
     return out
 
 
+def _day_base(bars: list[dict], live_price: float | None) -> float:
+    """The close the day's move is measured from.
+
+    Without a live price the move is last bar vs the bar before. WITH one, during the
+    session the last bar is YESTERDAY (today's is excluded until 16:15 ET, spec 3.1),
+    so bars[-2] is two sessions back: on 2026-10-01 INTC read +2.4% while down 1.0%.
+    """
+    import datetime
+    import zoneinfo
+    today = datetime.datetime.now(zoneinfo.ZoneInfo("America/New_York")).date().isoformat()
+    if live_price and bars[-1]["date"] < today:
+        return bars[-1]["close"]
+    return bars[-2]["close"]
+
+
 def analyse(symbol: str, bars: list[dict], risk: dict, live_price: float | None = None,
             held: dict | None = None) -> dict:
     """One ticker -> everything the card needs, or a reason there is no call.
@@ -118,7 +133,7 @@ def analyse(symbol: str, bars: list[dict], risk: dict, live_price: float | None 
     qty = held["qty"] if held else 0
 
     res = {"symbol": symbol, "regime": state, "price": price,
-           "change_pct": (price / bars[-2]["close"] - 1) * 100,
+           "change_pct": (price / _day_base(bars, live_price) - 1) * 100,
            "atr": a, "sma": m, "range_lo": lo, "range_hi": hi,
            "invalidation": invalidation, "last_bar": last["date"],
            "held_qty": qty, "reentry": m + HYST * a}
