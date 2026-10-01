@@ -79,10 +79,16 @@ def bars(symbol: str, count: int = 60, timespan: str = "D") -> list[dict]:
 
 
 def snapshot(symbols: list[str]) -> dict[str, dict]:
-    """Latest price per symbol. Missing symbols are simply absent from the dict."""
+    """Latest price per symbol, pre/post-market included. Missing symbols are absent.
+
+    The keys are snake_case (pre_close, change_ratio). This parser read camelCase
+    until 2026-10-01, so every row raised KeyError, was skipped, and every card priced
+    off the prior CLOSE while looking live -- MU printed "+0.00%" pre-market after
+    earnings. Outside regular hours the extended-hours last trade is the price.
+    """
     try:
         r = client().data.market_data.get_snapshot(
-            symbols=",".join(symbols), category="US_STOCK")
+            symbols=",".join(symbols), category="US_STOCK", extend_hour_required=True)
         data = r.json() if hasattr(r, "json") else r
     except Exception as e:
         print(f"  ! snapshot failed: {type(e).__name__}: {e}", file=sys.stderr)
@@ -90,13 +96,24 @@ def snapshot(symbols: list[str]) -> dict[str, dict]:
     out = {}
     for s in data if isinstance(data, list) else []:
         try:
+            status = s.get("trade_status") or ""
+            regular = status in ("", "RTH", "TRADING")
+            ext = s.get("extend_hour_last_price")
+            price = float(s["price"] if regular or not ext else ext)
+            # The day's move is measured from the previous session's close. Pre-market,
+            # Webull's pre_close still names the session BEFORE that one (measured
+            # 2026-10-01 07:20 ET: pre_close 1065.08 = Sep 29, close 1065.11 = Sep 30),
+            # so pre-market the base is `close`. In and after the session it is pre_close.
+            base = float(s["close"] if status.startswith("PRE") and s.get("close")
+                         else s["pre_close"])
             out[s["symbol"]] = {
-                "price": float(s["price"]),
-                "pre_close": float(s["preClose"]),
-                "change_pct": float(s.get("changeRatio", 0)) * 100,
+                "price": price,
+                "pre_close": base,
+                "change_pct": (price / base - 1) * 100,
                 "volume": float(s.get("volume", 0)),
+                "session": s.get("trade_status", ""),
             }
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
             continue
     return out
 
