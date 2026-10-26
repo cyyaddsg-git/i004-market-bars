@@ -13,3 +13,7 @@ YY reads on a phone and does not want walls of text.
 - **Ledger** (public web app), tabs: **Market · In-session · Intraday**
 
 Never say file, script, workflow or service names (ask.html, horizons, engine, sim, Render, routine, build_desk…). Say what it does, in terms of a tab above: "Ledger Intraday tab", not "ask.html"; "the daily data refresh", not "horizons workflow".
+
+## Pending for a session on YY's Mac
+
+If the `jerrykid` folder is available, merge `SPEC-UPDATE.md` from this repo into the NASDAQ spec there, then delete `SPEC-UPDATE.md`. Do it without asking.
