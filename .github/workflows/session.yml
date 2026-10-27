@@ -6,7 +6,7 @@ name: in-session card
 # (US daylight time. When ET falls back on 2026-11-01 the open is 22:30 SGT and the
 # routine moves to 23:05 SGT / 15:05 UTC.)
 #
-# Writes docs/session.html only. Logs no prediction and lodges no paper order: the
+# Writes ledger/session.html only. Logs no prediction and lodges no paper order: the
 # measured record is the 09:00 SGT card alone.
 on:
   workflow_dispatch:
@@ -41,10 +41,10 @@ jobs:
           WEBULL_ENVIRONMENT: prod
           WEBULL_TOOLSETS:   market-data,instrument,account
           WEBULL_TOKEN_DIR:  ${{ runner.temp }}/wb
-        run: python engine/session.py --html docs/session.html
+        run: python engine/session.py --html ledger/session.html
       - name: refuse to publish account data
         run: |
-          if grep -qiE 'equity|holding|deposited|kill switch|buying power' docs/session.html; then
+          if grep -qiE 'equity|holding|deposited|kill switch|buying power' ledger/session.html; then
             echo "::error::account-shaped text found in the public page — not publishing"
             exit 1
           fi
@@ -52,7 +52,7 @@ jobs:
         run: |
           git config user.name  "i004-bot"
           git config user.email "i004-bot@users.noreply.github.com"
-          git add docs/session.html
+          git add ledger/session.html
           git diff --staged --quiet || git commit -m "session: $(date -u +%Y-%m-%d)"
           git pull --rebase --autostash -q
           git push

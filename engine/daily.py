@@ -24,7 +24,8 @@ The two surfaces carry deliberately different content (plan R12):
 
 The two surfaces carry deliberately different content (plan R12):
 
-    docs/index.html   PUBLIC   advice only. No holdings, no equity, no P&L.
+    ledger/index.html advice only. No holdings, no equity, no P&L. (Ledger retired from the
+                      public site 2026-10-27; the file is kept for the private Desk.)
     email             PRIVATE  the same advice plus the account lines.
 
 It also serves a second purpose: the Webull token dies after 15 consecutive days
@@ -50,8 +51,8 @@ import sim                                     # noqa: E402
 import render                                  # noqa: E402
 
 ET = zoneinfo.ZoneInfo("America/New_York")
-PAGE = os.path.join(REPO, "docs", "index.html")
-SIM_PAGE = os.path.join(REPO, "docs", "sim.html")
+PAGE = os.path.join(REPO, "ledger", "index.html")
+SIM_PAGE = os.path.join(REPO, "ledger", "sim.html")
 
 
 CLOSE = datetime.time(16, 0)

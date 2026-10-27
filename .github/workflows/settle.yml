@@ -50,14 +50,14 @@ jobs:
       - name: settle yesterday
         run: python engine/daily.py --settle ${{ inputs.dry_run && '--dry-run' || '' }}
 
-      # docs/sim.html is a SIMULATED book, so it legitimately says "equity". It
+      # ledger/sim.html is a SIMULATED book, so it legitimately says "equity". It
       # must still never carry the real deposited figure.
       - name: refuse to publish the real account figure
         env:
           ACCOUNT_DEPOSITED: ${{ secrets.ACCOUNT_DEPOSITED }}
         run: |
-          if [ -f docs/sim.html ] && [ -n "$ACCOUNT_DEPOSITED" ] \
-             && grep -qF "$ACCOUNT_DEPOSITED" docs/sim.html; then
+          if [ -f ledger/sim.html ] && [ -n "$ACCOUNT_DEPOSITED" ] \
+             && grep -qF "$ACCOUNT_DEPOSITED" ledger/sim.html; then
             echo "::error::the real account figure appears in the simulated page"
             exit 1
           fi
@@ -66,7 +66,7 @@ jobs:
         run: |
           git config user.name  "i004-bot"
           git config user.email "i004-bot@users.noreply.github.com"
-          git add data/predictions.csv data/orders.csv data/book.json docs/sim.html
+          git add data/predictions.csv data/orders.csv data/book.json ledger/sim.html
           git diff --staged --quiet || git commit -m "settle: $(date -u +%Y-%m-%d)"
           git pull --rebase --autostash -q
           git push

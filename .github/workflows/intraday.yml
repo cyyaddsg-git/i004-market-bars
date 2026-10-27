@@ -51,13 +51,13 @@ jobs:
           # NEWS goes through the environment, never interpolated into the shell:
           # "$96.2B" was being read as positional parameter 9 and printed "6.2B".
           python engine/intraday_card.py "${{ inputs.symbol }}" "${{ inputs.timespan }}" \
-                 --news "$NEWS" --html docs/intraday.html
+                 --news "$NEWS" --html ledger/intraday.html
 
-      # Its own page, like docs/sim.html — index.html's account-data gate is untouched.
+      # Its own page, like ledger/sim.html — index.html's account-data gate is untouched.
       - name: publish the card
         run: |
           git config user.name  "i004-bot"
           git config user.email "i004-bot@users.noreply.github.com"
-          git add docs/intraday.html
+          git add ledger/intraday.html
           git diff --staged --quiet || git commit -m "intraday: ${{ inputs.symbol }} $(date -u +%H:%MZ)"
           git push

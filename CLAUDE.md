@@ -10,7 +10,7 @@ YY reads on a phone and does not want walls of text.
 ## Names YY knows — use only these
 
 - **Desk** (private artifact), tabs: **Account · Card · Search · Ask · Track**
-- **Ledger** (public web app), tabs: **Market · In-session · Intraday**
+- **Ledger** (old public web app, retired 27 Oct 2026), tabs were: **Market · In-session · Intraday**. All of it now lives in Desk.
 
 Never say file, script, workflow or service names (ask.html, horizons, engine, sim, Render, routine, build_desk…). Say what it does, in terms of a tab above: "Ledger Intraday tab", not "ask.html"; "the daily data refresh", not "horizons workflow".
 

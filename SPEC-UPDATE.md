@@ -7,7 +7,7 @@ Merge into the NASDAQ spec in the Mac `jerrykid` folder, then delete this file.
 | App | Who sees it | Tabs |
 |---|---|---|
 | **Desk** | YY only (private, pinned in Claude) | **Account · Card · Search · Ask · Track** |
-| **Ledger** | Public web app | **Market · In-session · Intraday** |
+| **Ledger** | Retired 27 Oct 2026 (public site shows a retired notice) | was Market · In-session · Intraday |
 
 ## Desk tabs
 
@@ -32,5 +32,5 @@ Confidence: **High** = call beats guessing by ≥5pp · **Medium** 2–5pp · **
 ## Open
 
 1. Daily refresh of Sell/Trim/Hold, target, stop.
-2. Desk has no In-session or Intraday equivalent yet; keep those Ledger tabs.
+2. Done 27 Oct: Desk Card has In-session; Desk Search has Today (Intraday). Ledger retired.
 3. Search shows full analysis for 273 tickers; others get price only.

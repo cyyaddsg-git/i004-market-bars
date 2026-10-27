@@ -92,7 +92,11 @@ class _CardText(HTMLParser):
 def ledger_card(ref: str) -> dict:
     """The Ledger Market card exactly as published, so the Desk shows the same calls."""
     p = _CardText()
-    p.feed(git(ref, "docs/index.html"))
+    try:
+        page = git(ref, "ledger/index.html")
+    except subprocess.CalledProcessError:              # before the Ledger moved out of docs/
+        page = git(ref, "docs/index.html")
+    p.feed(page)
     out = []
     num = r"(-?[\d,]+\.?\d*)"
     for sym, text in p.rows:
