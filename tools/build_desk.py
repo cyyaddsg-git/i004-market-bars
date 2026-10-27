@@ -157,8 +157,20 @@ def track(ref: str) -> dict:
                 mv += q * (last_px[t] or 0)
         curve.append([d, round(cash + mv, 2)])
     held = {t: q for t, q in pos.items() if q}
+    # Average cost per open position (same average-cost rule as the paper book).
+    cost = defaultdict(lambda: [0, 0.0])
+    for o in fills:
+        q, px = int(o["qty"]), float(o["fill_price"])
+        c = cost[o["ticker"]]
+        if o["side"] == "BUY":
+            c[0] += q; c[1] += q * px
+        elif c[0]:
+            c[1] -= c[1] / c[0] * q; c[0] -= q
+    holdings = [{"s": t, "q": q, "avg": round(cost[t][1] / cost[t][0], 4), "last": last_px.get(t),
+                 "pnl": round(q * ((last_px.get(t) or 0) - cost[t][1] / cost[t][0]), 2)}
+                for t, q in held.items() if cost[t][0]]
     trades = [{"d": o["fill_date"], "s": o["ticker"], "side": o["side"], "q": int(o["qty"]), "p": float(o["fill_price"])}
-              for o in sorted(orders, key=lambda o: o["fill_date"], reverse=True)[:25]]
+              for o in sorted(orders, key=lambda o: o["fill_date"], reverse=True)]
     peak, mdd = 0.0, 0.0
     for _, v in curve:
         peak = max(peak, v); mdd = min(mdd, v / peak - 1)
@@ -172,7 +184,7 @@ def track(ref: str) -> dict:
                   "open": [{"d": p["issued_date"], "s": p["ticker"], "rg": p["regime"], "a": p["action"],
                             "lo": float(p["range_lo"]), "hi": float(p["range_hi"]), "base": float(p["price"])} for p in open_],
                   "per": per, "recent": recent},
-        "sim": {"start": CAPITAL, "curve": curve, "held": held, "trades": trades,
+        "sim": {"start": CAPITAL, "curve": curve, "held": held, "holdings": holdings, "cash": round(cash, 2), "trades": trades,
                 "equity": curve[-1][1] if curve else CAPITAL, "maxdd": round(mdd * 100, 2)},
     }
 

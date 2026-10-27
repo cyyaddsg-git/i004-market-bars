@@ -2,22 +2,14 @@
 
 Merge into the NASDAQ spec in the Mac `jerrykid` folder, then delete this file.
 
-## Two apps, eight tabs
+## Desk — 4 tabs (27 Oct 2026)
 
-| App | Who sees it | Tabs |
-|---|---|---|
-| **Desk** | YY only (private, pinned in Claude) | **Account · Card · Search · Ask · Track** |
-| **Ledger** | Retired 27 Oct 2026 (public site shows a retired notice) | was Market · In-session · Intraday |
+- **Market** — how is the market today: QQQ live with today's 5-minute line, SPY, SMH, 12 key stocks as a heat grid, sectors, big movers (> $2B), top 5 headlines (refreshed each morning).
+- **Card** — what to do with each of my stocks: header counts SELL/TRIM/HOLD, value, 7-day change, cash; every holding with live price, action, target, stop and a stop←price→target bar; tonight's 5-minute line in US hours. (i) explains the basis: daily chart + 1-month range for the plan, 5-minute chart for tonight.
+- **Search** — one box: a ticker opens its view (live price, trend, ladder, 1D/5D/1M with confidence, tonight's line); a question goes to Claude, which must fetch live data (quotes, chart analysis, portfolio, market, price history) before answering. Buy ideas below.
+- **Sim** — paper account that follows the daily market call: P&L, curve, direction/range hit rates, worst drop, current paper holdings, full order history, per-stock accuracy, recent calls.
 
-## Desk tabs
-
-- **Account** — money only: value 7 days ago → now, open P&L by stock, last 7 days by stock. Live from Webull.
-- **Card** — advice only: my stocks (Sell/Trim/Hold, target, stop, trend, 1D/5D/1M confidence), watchlist calls, buy ideas.
-- **Search** — any ticker: live price, trend, exit and re-entry prices, price ladder, 1D/5D/1M calls with confidence.
-- **Ask** — question in, Claude answer out, using live positions and prices.
-- **Track** — is the Card right: direction hit rate, range hit rate, paper account value since 27 Aug, per-stock accuracy, recent calls ✓/✗.
-
-Confidence: **High** = call beats guessing by ≥5pp · **Medium** 2–5pp · **Low** = no edge, trust only the range.
+Ledger (public site) retired 27 Oct 2026.
 
 ## Daily timing (SGT, weekdays)
 
