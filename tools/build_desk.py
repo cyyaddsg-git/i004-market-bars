@@ -20,8 +20,10 @@ import json
 import os
 import subprocess
 import sys
+import re
 import tarfile
 from collections import defaultdict
+from html.parser import HTMLParser
 
 CAPITAL = 100_000.0
 
@@ -52,6 +54,56 @@ def horizons(ref: str) -> list[dict]:
                         "ok": (j.get("suitability") or {}).get("ok"), "rx": R(j.get("rule_x")), "hx": R(j.get("hold_x")),
                         "bars": j.get("bars"), "rows": rows})
     return sorted(out, key=lambda x: x["s"])
+
+
+class _CardText(HTMLParser):
+    """Text of each <span data-sym> row and the data-stamp line on the Ledger Market card."""
+    def __init__(self):
+        super().__init__()
+        self.rows, self.stamp, self._sym, self._depth, self._stamp = [], "", None, 0, False
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag in ("br", "img", "hr", "wbr", "input", "meta", "link"):
+            return                                    # void tags never close
+        if self._sym is not None:
+            self._depth += 1
+        elif "data-sym" in a:
+            self._sym, self._depth = a["data-sym"], 0
+            self.rows.append([self._sym, ""])
+        elif "data-stamp" in a:
+            self._stamp = True
+
+    def handle_endtag(self, tag):
+        if self._sym is not None:
+            if self._depth == 0:
+                self._sym = None
+            else:
+                self._depth -= 1
+        self._stamp = False
+
+    def handle_data(self, data):
+        if self._sym is not None:
+            self.rows[-1][1] += data
+        elif self._stamp:
+            self.stamp += data
+
+
+def ledger_card(ref: str) -> dict:
+    """The Ledger Market card exactly as published, so the Desk shows the same calls."""
+    p = _CardText()
+    p.feed(git(ref, "docs/index.html"))
+    out = []
+    num = r"(-?[\d,]+\.?\d*)"
+    for sym, text in p.rows:
+        t = " ".join(text.replace("\xa0", " ").split())
+        m = re.match(re.escape(sym) + r" " + num + r" ([+-]?[\d.]+)% (.*?)(?: today " + num + r" – " + num + r")?(?: accuracy.*)?$", t)
+        if not m:
+            continue
+        f = lambda v: float(v.replace(",", "")) if v else None
+        out.append({"s": sym, "p": f(m.group(1)), "ch": float(m.group(2)), "call": m.group(3).strip(),
+                    "lo": f(m.group(4)), "hi": f(m.group(5))})
+    return {"stamp": " ".join(p.stamp.split()), "rows": out}
 
 
 def track(ref: str) -> dict:
@@ -109,6 +161,7 @@ def track(ref: str) -> dict:
     cfg = json.loads(git(ref, "engine/config.json"))
     return {
         "generated": dates[-1] if dates else None,
+        "ledger": ledger_card(ref),
         "watchlist": cfg.get("watchlist", []),
         "preds": {"n": len(settled), "dir": rate(settled, "dir_hit"), "band": rate(settled, "band_hit"),
                   "first": min((p["issued_date"] for p in settled), default=None),
