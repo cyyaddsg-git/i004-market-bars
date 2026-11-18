@@ -19,7 +19,8 @@ Rules (daily chart):
           (below the 50-day when there is no 200-day yet); otherwise sideways.
   stop    trails: the higher of the last plan's stop and (20-day low - 0.25 ATR), always below the price.
   target  the nearest resistance above the price (20/50/200-day average or 20-day high), else price + 2 ATR.
-  action  price at or under the last stop -> SELL NOW.
+  action  price at or under the last stop -> SELL NOW; if it is already more than 2 ATR under it (the stop was
+          missed), sell into the bounce at the 10-day average with a hard stop under the 20-day low instead.
           under $1 -> SELL at target (delisting risk).
           downtrend -> sell into the bounce at the target: half for large caps (> $100B), all for the rest.
           uptrend or sideways -> HOLD with the trailing stop.
@@ -125,10 +126,21 @@ def plan_one(s, qty, avg, price, b, cap, prev):
         trend = "down"
     else:
         trend = "side"
+    rs = f", RSI {r:.0f}" if r is not None else ""
     prev_stop = prev.get("stop") if prev else None
     if prev_stop is not None and price <= prev_stop:
-        return dict(act="Sell", tgt=None, stop=prev_stop, now=True,
-                    why=f"Below stop {px(prev_stop)}. Trend {trend}, RSI {r:.0f}" if r else f"Below stop {px(prev_stop)}")
+        if prev_stop - price <= 2 * a:
+            return dict(act="Sell", tgt=None, stop=prev_stop, now=True,
+                        why=f"Below stop {px(prev_stop)}. Trend {trend}, RSI {r:.0f}" if r else f"Below stop {px(prev_stop)}")
+        # Stop missed by more than 2 ATR: the exit is late, so sell into the first bounce rather than at the low,
+        # with a fresh hard stop under the recent low.
+        s10 = sma(10)
+        tgt = round(s10 if s10 and s10 > price * 1.01 else price + a, 4 if price < 1 else 2)
+        stop = round(lo20 - 0.25 * a, 4 if price < 1 else 2)
+        if stop >= price:
+            stop = round(price - a, 4 if price < 1 else 2)
+        return dict(act="Sell", tgt=tgt, stop=stop,
+                    why=f"Stop {px(prev_stop)} missed, now far below{rs}. Sell the bounce at 10-day {px(tgt)}; hard stop {px(stop)}")
     stop = lo20 - 0.25 * a
     if prev_stop is not None and prev_stop < price:
         stop = max(stop, prev_stop)
@@ -140,7 +152,6 @@ def plan_one(s, qty, avg, price, b, cap, prev):
     tgt = round(tgt, 4 if price < 1 else 2)
     name = lambda v: ("20-day" if v == s20 else "50-day" if v == s50 else "200-day" if v == s200 else "20-day high")
     lvl = name(res[0]) if res else "2 ATR"
-    rs = f", RSI {r:.0f}" if r is not None else ""
     if price < 1:
         return dict(act="Sell", tgt=tgt, stop=stop, why=f"Under $1, delisting risk. Sell at {lvl} {px(tgt)}{rs}")
     if trend == "down":
