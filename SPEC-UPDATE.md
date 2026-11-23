@@ -27,9 +27,9 @@ Ledger (public site) retired 27 Oct 2026.
 2. Done 27 Oct: Desk Card has In-session; Desk Search has Today (Intraday). Ledger retired.
 3. Search shows full analysis for 273 tickers; others get price only.
 
-## Strategy headline and Market read (23 Nov)
+## Strategy headline and Why (23 Nov)
 
 - Card: the action card's title is today's strategy headline (max 10 words, e.g. "One-day relief rally, trend still down → sell into the bounce"), then the counts (sell all now · sell part now · sell at target · hold), the condition that flips the plan to buying, and a closed "Why ▸" with the reasons, so the orders stay on the first screen.
-- Market: a "Market read" card under the QQQ summary gives the reasons (why the market moved, the trend, why each action), what flips the plan, and what it costs if wrong. It links back to the orders. The Market read and the Card's Why use the same reasons.
+- The reasons live in one place only: the Card's Why. The Market tab stays data (QQQ, key stocks, sectors, news).
 - Scale-out: a holding can be sold part now and the rest on a limit; the Card shows "SELL n NOW · rest @limit".
 - Both read the "strategy" block and "nowQty" in the Desk's private account file, written by the daily order ticket.
