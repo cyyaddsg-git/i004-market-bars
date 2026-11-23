@@ -23,6 +23,13 @@ Ledger (public site) retired 27 Oct 2026.
 
 ## Open
 
-1. Daily refresh of Sell/Trim/Hold, target, stop.
+1. Done 23 Nov: daily order ticket at 20:40 BKK refreshes Sell/Trim/Hold, target and stop from live Webull data.
 2. Done 27 Oct: Desk Card has In-session; Desk Search has Today (Intraday). Ledger retired.
 3. Search shows full analysis for 273 tickers; others get price only.
+
+## Strategy headline and Market read (23 Nov)
+
+- Card: the action card's title is today's strategy headline (max 10 words, e.g. "One-day relief rally, trend still down → sell into the bounce"), then the sell/limit/hold counts, the condition that flips the plan to buying, and a link to the Market read.
+- Market: a "Market read" card under the QQQ summary gives the reasons (why the market moved, the trend, why each action), what flips the plan, and what it costs if wrong. It links back to the orders.
+- Scale-out: a holding can be sold part now and the rest on a limit; the Card shows "SELL n NOW · rest @limit".
+- Both read the "strategy" block and "nowQty" in the Desk's private account file, written by the daily order ticket.
