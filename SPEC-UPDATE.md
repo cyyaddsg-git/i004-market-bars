@@ -50,3 +50,7 @@ For a stock YY holds, the Card's plan (action, order, stop rule) is the only adv
 - Card is one list: Today, then Orders grouped Sell now · Sell part now · Limit orders (GTC) · Hold. Each row shows price, day move, P&L, the order to type and its stop rule. Tapping it shows the reason, target vs stop, past-year odds, day/week/month ranges and a link to Search.
 - Each order row checks Webull's open orders: "✓ In Webull", "Not placed in Webull yet", or what differs (DAY instead of GTC, quantity, price).
 - Search, for a held stock: the plan's stop and limit prices sit on the chart-levels ladder; the trend levels read "Trend turns up above" / "Uptrend breaks under"; the 5-minute entry line is hidden.
+
+## Today panel (24 Nov)
+
+The top of the Card is a compact status panel, not an article: a mode chip (Sell mode / Hold mode / Buy mode, Buy once the buy signal is met) with the plan date and a "Why" button on one row; a one-line headline; the buy-signal gauge (dots for closes above the line, a track from the recent low to the line with today's price and the last 10 closes marked); and Value · Open P&L · Cash in one divided row. "Why" opens the reasons inside the panel.
