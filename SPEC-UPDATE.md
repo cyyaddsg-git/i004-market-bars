@@ -43,3 +43,10 @@ Ledger (public site) retired 27 Oct 2026.
 ## One plan everywhere (24 Nov)
 
 For a stock YY holds, the Card's plan (action, order, stop rule) is the only advice. Search shows it under "You hold", with a link to the Card. Claude's read in Search and Ask must restate that plan and may only disagree in the RISK line. The trend label says where the trend breaks or turns (no action words). The day/week/month ranges show no SELL/HOLD pill for held stocks, and the past-year odds are shown as facts, not as a verdict.
+
+## Review fixes (24 Nov)
+
+- The daily plan alone decides each action. Live prices no longer flip it: a dip under a stop shows a note ("the stop counts at the close"), and a price at the limit shows "check the order filled".
+- Card is one list: Today, then Orders grouped Sell now · Sell part now · Limit orders (GTC) · Hold. Each row shows price, day move, P&L, the order to type and its stop rule. Tapping it shows the reason, target vs stop, past-year odds, day/week/month ranges and a link to Search.
+- Each order row checks Webull's open orders: "✓ In Webull", "Not placed in Webull yet", or what differs (DAY instead of GTC, quantity, price).
+- Search, for a held stock: the plan's stop and limit prices sit on the chart-levels ladder; the trend levels read "Trend turns up above" / "Uptrend breaks under"; the 5-minute entry line is hidden.
