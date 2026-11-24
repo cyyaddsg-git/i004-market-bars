@@ -36,6 +36,6 @@ Ledger (public site) retired 27 Oct 2026.
 
 ## Card layout (24 Nov)
 
-1. Today: the strategy headline, the condition that turns the plan to buying, "Why this plan" (closed), and Value · Open loss · Cash.
+1. Today: the strategy headline, the condition that turns the plan to buying with a tracker under it (the last 10 QQQ closes as dots against the goal line, the closes still needed, and a recent-low → goal track with today's price, live when Webull is connected), "Why this plan" (closed), and Value · Open loss · Cash.
 2. Orders: exactly what to type into Webull, grouped Sell now · Sell part now · Limit orders (GTC) · Hold, with the rough dollar total per group. Tapping a row opens that stock.
 3. My stocks: each stock shows the same order line, its stop rule ("Close under X → sell at next open") and one short reason. The target-vs-stop bar, past-year odds and chart levels open on tap.
