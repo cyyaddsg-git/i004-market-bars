@@ -54,3 +54,8 @@ For a stock YY holds, the Card's plan (action, order, stop rule) is the only adv
 ## Today panel (24 Nov)
 
 The top of the Card is a compact status panel, not an article: a mode chip (Sell mode / Hold mode / Buy mode, Buy once the buy signal is met) with the plan date and a "Why" button on one row; a one-line headline; the buy-signal gauge (dots for closes above the line, a track from the recent low to the line with today's price and the last 10 closes marked); and Value · Open P&L · Cash in one divided row. "Why" opens the reasons inside the panel.
+
+## Market header and Buy back (24 Nov)
+
+- Market tab header: one row with a session chip (Pre-market / Open / After hours / Closed), the next bell in SGT with a countdown, and a small holiday tag ("Thu off") only when one is within 3 days. The QQQ chart shows today's pre-market and session bars, captioned "Today · 5-min" or "Last session · <date>", with the last close as the dashed line. Before the open, % changes are measured from the last session's close, not Webull's previous-day move.
+- Card: a Buy back list after Orders. It waits for the buy signal (QQQ closes above its 200-day two days in a row). QQQ comes first with half the cash; then each name buys, max 10% of the account, when it closes above its trend-turns-up line, sorted by distance. Small caps that caused the losses are listed as not bought back.
