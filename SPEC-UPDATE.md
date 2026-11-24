@@ -66,3 +66,14 @@ The top of the Card is a compact status panel, not an article: a mode chip (Sell
 - Chart levels show only levels within ±25% of the price, plus the plan's stop and limits.
 - While the Card's buy signal is off, nothing says BUY: day/week/month calls read "BUY AFTER SIGNAL", the 5-minute line reads "WAIT", and Buy ideas become a Watchlist ("buy only after the market buy signal"). "Exit" there reads "Breaks under".
 - "Ask a question about X" puts the ticker in the search box for a question instead of asking Claude for a second verdict.
+
+## One structure (approved 24 Nov)
+
+Each tab answers one question; each fact has one source; only the Card advises; shared parts look the same everywhere. The Desk always opens on the Card.
+
+- Market (what is the market doing?): session + QQQ (Today 5-min or 2-week daily chart, SPY/SMH in the figures row) · sectors · key stocks and big movers in one card · dated news. No advice.
+- Card (what do I do today?): Today panel · Orders · Buy back · Ask.
+- Search (one stock): header with one trend line · your plan (held, read-only from the Card) or watchlist status (not held) · Price levels (stop–now–target scale with odds, ladder, day/week/month ranges) · news & Claude's read · street view. The watchlist shows only when no stock is open.
+- Sim (is the advice working?): paper curve · holdings and order history · accuracy per stock with recent calls.
+- Shared parts: session chip, trend line, order line + stop, level scale, progress track, ranges block.
+- Sources: daily plan → Card, Search plan, Ask, Claude's read, Buy back; trend levels → trend line, ladder, Buy back, watchlist; Webull live → prices, account, open orders, odds, street view; morning news → Market and Search news; paper account → Sim.
