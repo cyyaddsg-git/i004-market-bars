@@ -33,3 +33,9 @@ Ledger (public site) retired 27 Oct 2026.
 - The reasons live in one place only: the Card's Why. The Market tab stays data (QQQ, key stocks, sectors, news).
 - Scale-out: a holding can be sold part now and the rest on a limit; the Card shows "SELL n NOW · rest @limit".
 - Both read the "strategy" block and "nowQty" in the Desk's private account file, written by the daily order ticket.
+
+## Card layout (24 Nov)
+
+1. Today: the strategy headline, the condition that turns the plan to buying, "Why this plan" (closed), and Value · Open loss · Cash.
+2. Orders: exactly what to type into Webull, grouped Sell now · Sell part now · Limit orders (GTC) · Hold, with the rough dollar total per group. Tapping a row opens that stock.
+3. My stocks: each stock shows the same order line, its stop rule ("Close under X → sell at next open") and one short reason. The target-vs-stop bar, past-year odds and chart levels open on tap.
