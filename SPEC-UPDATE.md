@@ -77,3 +77,7 @@ Each tab answers one question; each fact has one source; only the Card advises; 
 - Sim (is the advice working?): paper curve · holdings and order history · accuracy per stock with recent calls.
 - Shared parts: session chip, trend line, order line + stop, level scale, progress track, ranges block.
 - Sources: daily plan → Card, Search plan, Ask, Claude's read, Buy back; trend levels → trend line, ladder, Buy back, watchlist; Webull live → prices, account, open orders, odds, street view; morning news → Market and Search news; paper account → Sim.
+
+## Sells vs close record (25 Nov)
+
+The Sim tab has "Your sells vs close": for each trading day, each stock YY sold with shares, average sell price, that day's close, the difference and the dollars missed (or saved) against selling at the close, plus a total, other trades that day and one note. Earlier days stay as one line each. The daily order ticket appends the previous day from Webull's filled orders. The record lives only in the private Desk.
