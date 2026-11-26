@@ -85,4 +85,4 @@ A fifth tab, Record (YY's real Webull trades; Sim stays the paper account), open
 ## Daily summaries (25 Nov)
 
 - Pre-market: the order ticket at 21:40 SGT (push + Card Today panel).
-- After close: a recap at 07:08 SGT, Tue–Sat, for the session that just ended: QQQ/SPY/SMH closes, QQQ's day range with open and close, how the day moved, the main reason, moves in YY's names, and the levels to watch (buy signal, 20-day, support). Shown on the Market tab as "Last session" (facts only) and pushed as one line. It also adds that day's sells to Record.
+- After close: a recap at 07:08 SGT, Tue–Sat, for the session that just ended: QQQ/SPY/SMH closes, QQQ's day range with open and close, how the day moved, the main reason, moves in YY's names, and the levels to watch (buy signal, 20-day, support). Shown on the Card inside "Why" as the "Post-close review" page, next to the "Pre-market plan" page, with one "Plan vs day" line comparing the morning plan with what happened; pushed as one line. It also adds that day's sells to Record.
