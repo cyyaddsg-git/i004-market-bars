@@ -82,7 +82,7 @@ Each tab answers one question; each fact has one source; only the Card advises; 
 
 A fifth tab, Record (YY's real Webull trades; Sim stays the paper account), opens with the running total versus selling at the close, then "Sells vs close": for each trading day, each stock YY sold with shares, average sell price, that day's close, the difference and the dollars missed (or saved) against selling at the close, plus a total, other trades that day and one note. Earlier days stay as one line each. The daily order ticket appends the previous day from Webull's filled orders. The record lives only in the private Desk.
 
-## Daily summaries (25 Nov)
+## Daily summaries (25 Nov, both pages daily from 26 Nov)
 
-- Pre-market: the order ticket at 21:40 SGT (push + Card Today panel).
+- Pre-market: every trading day at 21:40 SGT (Mon–Fri US days) the order ticket rewrites the plan dated that day: push + Card Today panel + the "Pre-market plan" page in Why (headline, 3–5 reasons incl. pre-market vs last close and the day's news, risk). On a US holiday it pushes "market closed, no orders".
 - After close: a recap at 07:08 SGT, Tue–Sat, for the session that just ended: QQQ/SPY/SMH closes, QQQ's day range with open and close, how the day moved, the main reason, moves in YY's names, and the levels to watch (buy signal, 20-day, support). Shown on the Card inside "Why" as the "Post-close review" page, next to the "Pre-market plan" page, with one "Plan vs day" line comparing the morning plan with what happened; pushed as one line. It also adds that day's sells to Record.
